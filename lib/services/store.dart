@@ -280,6 +280,28 @@ class Store extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── 강해 시리즈 맥락 (웹 getSeriesContext 와 같은 문장) ─────────────────────────
+
+  /// 같은 "구분"(시리즈명)의 다른 설교들을 만든 순서대로 요약 — 본문 메시지(새벽은 핵심 메시지) 앞 300자
+  String getSeriesContext(String type, String? seriesName, String currentId) {
+    if (seriesName == null || seriesName.trim().isEmpty) return '';
+    final list = items[type]!.where((i) => i.category == seriesName && i.id != currentId).toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    if (list.isEmpty) return '';
+    // 단계 순서가 바뀌어도 어긋나지 않도록 번호 대신 단계 이름으로 찾는다
+    final coreKey = type == 'sermon' ? 'message' : 'core_message';
+    final coreIndex = stepsForTab(type).firstWhere((s) => s.key == coreKey).index;
+    final lines = ['[강해 시리즈: $seriesName] 이전에 다룬 본문들:'];
+    for (final i in list) {
+      final content = i.steps[coreIndex];
+      final summary = (content == null || content.isEmpty)
+          ? '(내용 미생성)'
+          : (content.length > 300 ? content.substring(0, 300) : content).replaceAll('\n', ' ');
+      lines.add('- ${i.date} | ${(i.passage == null || i.passage!.isEmpty) ? '본문 미지정' : i.passage} | $summary');
+    }
+    return lines.join('\n');
+  }
+
   // ── 기억된 지시어 · 학습 메모리 · 사용자 지시항목 ───────────────────────────
 
   String keywordFor(String tab, String stepKey) => defaultKeywords['${tab}_$stepKey'] ?? '';
@@ -319,6 +341,9 @@ class Store extends ChangeNotifier {
     if (list.isEmpty) return '';
     return '[작성자 학습 메모리 — 아래 내용을 항상 반영하세요]\n${list.map((m) => '- ${m.text}').join('\n')}';
   }
+
+  List<CustomStepItem> customItemsForTab(String tab) => customStepItems.where((c) => c.tab == tab).toList()
+    ..sort((a, b) => a.order.compareTo(b.order));
 
   List<CustomStepItem> customItemsFor(String tab, String stepKey) =>
       customStepItems.where((c) => c.tab == tab && c.stepKey == stepKey).toList()

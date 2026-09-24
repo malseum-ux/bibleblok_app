@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'constants.dart';
@@ -43,6 +44,10 @@ class _BibleBlokAppState extends ConsumerState<BibleBlokApp> {
         'dark' => ThemeMode.dark,
         _ => ThemeMode.system,
       },
+      // 편집기(flutter_quill)와 날짜 달력이 쓰는 언어 설정
+      localizationsDelegates: FlutterQuillLocalizations.localizationsDelegates,
+      supportedLocales: const [Locale('ko'), Locale('en')],
+      locale: Locale(settings.lang),
       home: ready ? const HomeScreen() : const FolderGate(),
     );
   }

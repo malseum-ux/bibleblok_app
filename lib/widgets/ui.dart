@@ -77,8 +77,9 @@ class AccentButton extends StatelessWidget {
   final EdgeInsets padding;
   final double fontSize;
   final double? height;
+  final Color? color; // 기본은 강조색 (예: 중지 버튼은 빨강)
   const AccentButton(this.label,
-      {super.key, this.onPressed, this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 8), this.fontSize = 14, this.height});
+      {super.key, this.onPressed, this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 8), this.fontSize = 14, this.height, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +90,7 @@ class AccentButton extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          backgroundColor: enabled ? c.accent : c.border,
+          backgroundColor: enabled ? (color ?? c.accent) : c.border,
           foregroundColor: enabled ? Colors.white : c.textMuted,
           padding: padding,
           minimumSize: Size.zero,
