@@ -8,6 +8,7 @@ import '../constants.dart';
 import '../providers/app_state.dart';
 import '../providers/auth.dart';
 import '../services/file_io.dart';
+import '../services/web_import.dart';
 import '../theme/app_colors.dart';
 import 'ui.dart';
 
@@ -22,6 +23,29 @@ class SettingsPanel extends ConsumerStatefulWidget {
 class _SettingsPanelState extends ConsumerState<SettingsPanel> {
   String? exportStatus;
   String? importStatus; // reading | done:n | error:메시지
+  String? webStatus; // reading | done:n | error:메시지
+
+  /// 웹 바이블블록(Supabase)에 있는 이 계정의 데이터를 저장 폴더로 옮긴다 — 이미 있는 항목은 건너뛴다
+  Future<void> handleWebImport(bool ko) async {
+    final ok = await confirmDialog(
+      context,
+      ko
+          ? '웹 바이블블록에 저장된 이 계정의 설교·예배·새벽·교재를 저장 폴더로 가져올까요?\n\n'
+              '· 이미 가져온 항목은 다시 만들지 않습니다.\n'
+              '· 웹의 원본은 지우지 않습니다.\n'
+              '· 웹 브라우저에만 있던 기억된 지시어·학습 메모리는 옮겨지지 않습니다.'
+          : 'Import this account\'s data from the web app into your data folder?\n\nExisting items are skipped and the web originals are kept.',
+    );
+    if (!ok) return;
+    setState(() => webStatus = 'reading');
+    try {
+      final backup = await buildWebBackup();
+      final added = await ref.storeRead.importBackup(backup);
+      if (mounted) setState(() => webStatus = 'done:$added');
+    } catch (e) {
+      if (mounted) setState(() => webStatus = 'error:${'$e'.replaceFirst('Exception: ', '')}');
+    }
+  }
 
   Future<void> handleExport(String lang) async {
     final data = ref.storeRead.exportBackup();
@@ -167,6 +191,18 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
                   child: Text(ko ? '완료! ${importStatus!.substring(5)}개 항목을 더했습니다.' : 'Done! Added ${importStatus!.substring(5)} items.',
                       style: const TextStyle(fontSize: 12, color: AppColors.success)),
                 ),
+              const SizedBox(height: 8),
+              OutlineBtn(ko ? '웹 바이블블록에서 가져오기' : 'Import from Web App', alignLeft: true, onPressed: webStatus == 'reading' ? null : () => handleWebImport(ko)),
+              if (webStatus == 'reading')
+                Padding(padding: const EdgeInsets.only(top: 8), child: Text(ko ? '가져오는 중...' : 'Importing...', style: TextStyle(fontSize: 12, color: c.textMuted))),
+              if (webStatus?.startsWith('done:') == true)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(ko ? '완료! ${webStatus!.substring(5)}개 항목을 가져왔습니다.' : 'Done! Imported ${webStatus!.substring(5)} items.',
+                      style: const TextStyle(fontSize: 12, color: AppColors.success)),
+                ),
+              if (webStatus?.startsWith('error:') == true)
+                Padding(padding: const EdgeInsets.only(top: 8), child: Text(webStatus!.substring(6), style: const TextStyle(fontSize: 12, color: AppColors.danger))),
               if (importStatus?.startsWith('error:') == true)
                 Padding(padding: const EdgeInsets.only(top: 8), child: Text(importStatus!.substring(6), style: const TextStyle(fontSize: 12, color: AppColors.danger))),
             ]),
