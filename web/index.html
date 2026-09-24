@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="성경과설교">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="성경과설교">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+
+  <title>성경과설교</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <script>
+    // ── 저장 폴더 (File System Access API) ──────────────────────────────
+    // 폴더 핸들은 JS 메모리 + IndexedDB 에서만 관리하고, Dart 에는 경로 문자열만 오간다.
+    // 워드블록 플러터(web/index.html)의 wb* 함수를 바탕으로 삭제·폴더 만들기·전체 목록을 더했다.
+
+    let _bbHandle = null;      // 연결된 저장 폴더
+    let _bbStored = null;      // 권한이 풀려 복원 대기 중인 핸들
+    const _BB_DB = 'bb-folders';
+    const _BB_STORE = 'handles';
+    const _BB_KEY = 'data';
+
+    function _bbOpenIDB() {
+      return new Promise((res, rej) => {
+        const req = indexedDB.open(_BB_DB, 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore(_BB_STORE);
+        req.onsuccess = e => res(e.target.result);
+        req.onerror = e => rej(e.target.error);
+      });
+    }
+    async function _bbSaveIDB(handle) {
+      try {
+        const db = await _bbOpenIDB();
+        const tx = db.transaction(_BB_STORE, 'readwrite');
+        tx.objectStore(_BB_STORE).put(handle, _BB_KEY);
+        await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+        db.close();
+      } catch (e) { console.warn('[bb] IDB save failed', e); }
+    }
+    async function _bbLoadIDB() {
+      try {
+        const db = await _bbOpenIDB();
+        const tx = db.transaction(_BB_STORE, 'readonly');
+        const result = await new Promise((res, rej) => {
+          const r = tx.objectStore(_BB_STORE).get(_BB_KEY);
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+        db.close();
+        return result ?? null;
+      } catch (e) { return null; }
+    }
+
+    // 폴더 선택 — 항상 새로 고른다. 폴더 이름 반환
+    async function bbPickFolder() {
+      if (!window.showDirectoryPicker) throw new Error('unsupported');
+      const handle = await showDirectoryPicker({ mode: 'readwrite' });
+      _bbHandle = handle;
+      _bbStored = null;
+      await _bbSaveIDB(handle);
+      return handle.name;
+    }
+
+    // 새로고침 뒤 복원 — 권한이 살아 있으면 폴더 이름, 아니면 null
+    async function bbRestoreFolder() {
+      if (_bbHandle) return _bbHandle.name;
+      const h = await _bbLoadIDB();
+      if (!h) return null;
+      _bbStored = h;
+      let perm = 'prompt';
+      try { perm = await h.queryPermission({ mode: 'readwrite' }); } catch (_) {}
+      if (perm === 'granted') { _bbHandle = h; _bbStored = null; return h.name; }
+      return null;
+    }
+
+    async function bbHasStored() {
+      if (_bbHandle || _bbStored) return true;
+      const h = await _bbLoadIDB();
+      if (h) _bbStored = h;
+      return !!h;
+    }
+
+    // 권한 다시 요청 — 사용자 클릭 안에서 호출해야 한다
+    async function bbRequestPermission() {
+      const h = _bbStored || await _bbLoadIDB();
+      if (!h) return null;
+      try {
+        if (await h.requestPermission({ mode: 'readwrite' }) === 'granted') {
+          _bbHandle = h; _bbStored = null; return h.name;
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function _bbParts(path) { return path.split('/').filter(s => s.length > 0); }
+
+    async function _bbDir(parts, create) {
+      let dir = _bbHandle;
+      for (const part of parts) dir = await dir.getDirectoryHandle(part, { create: !!create });
+      return dir;
+    }
+
+    // 하위 폴더까지 전체 목록 — { dirs: [...], files: [...] } (숨김 항목 제외)
+    async function bbListTree() {
+      if (!_bbHandle) return null;
+      const dirs = [], files = [];
+      async function scan(dir, prefix) {
+        for await (const entry of dir.values()) {
+          if (entry.name.startsWith('.')) continue;
+          const path = prefix ? prefix + '/' + entry.name : entry.name;
+          if (entry.kind === 'directory') { dirs.push(path); await scan(entry, path); }
+          else files.push(path);
+        }
+      }
+      try { await scan(_bbHandle, ''); } catch (e) { console.error('[bb] scan error', e); }
+      return { dirs, files };
+    }
+
+    async function bbReadText(path) {
+      if (!_bbHandle) return null;
+      try {
+        const parts = _bbParts(path);
+        const dir = await _bbDir(parts.slice(0, -1), false);
+        const fh = await dir.getFileHandle(parts[parts.length - 1]);
+        return await (await fh.getFile()).text();
+      } catch (e) { return null; }
+    }
+
+    async function bbWriteText(path, text) {
+      if (!_bbHandle) return false;
+      try {
+        const parts = _bbParts(path);
+        const dir = await _bbDir(parts.slice(0, -1), true);
+        const fh = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+        const w = await fh.createWritable();
+        await w.write(text);
+        await w.close();
+        return true;
+      } catch (e) { console.error('[bb] write error', path, e); return false; }
+    }
+
+    async function bbMkdir(path) {
+      if (!_bbHandle) return false;
+      try { await _bbDir(_bbParts(path), true); return true; }
+      catch (e) { console.error('[bb] mkdir error', path, e); return false; }
+    }
+
+    async function bbDelete(path) {
+      if (!_bbHandle) return false;
+      try {
+        const parts = _bbParts(path);
+        const dir = await _bbDir(parts.slice(0, -1), false);
+        await dir.removeEntry(parts[parts.length - 1], { recursive: true });
+        return true;
+      } catch (e) { console.error('[bb] delete error', path, e); return false; }
+    }
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

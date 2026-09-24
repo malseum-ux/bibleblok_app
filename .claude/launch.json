@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bibleblok_app-web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "python3 -m http.server ${PORT:-8791} --directory build/web"],
+      "port": 8791,
+      "autoPort": false
+    }
+  ]
+}
