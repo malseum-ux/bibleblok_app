@@ -186,6 +186,28 @@ class _CellViewState extends ConsumerState<CellView> {
     await store.saveStep(item, idx, text);
   }
 
+  /// 교재의 // 명령 — 교재는 연구 단계가 없어 문맥·신학자 관점만
+  Future<void> handleAiSlashCommand(SlashCommand cmd) async {
+    resultHistory.forceSnapshot();
+    setState(() => refining = true);
+    final useTheological = cmd.mode != 'research';
+    final useContext = cmd.mode != 'fresh';
+    try {
+      await executeInlineCommand(cmd.instruction, useContext ? cmd.contextBefore : '', useContext ? cmd.contextAfter : '', lang,
+          widget.bible, item.passage, item.title, cmd.write, null, useTheological);
+    } catch (_) {
+      cmd.write('');
+    } finally {
+      if (mounted) setState(() => refining = false);
+    }
+  }
+
+  /// 드래그해서 고친 결과를 교재 내용에 반영·저장
+  Future<void> applyAiEdit(String html) async {
+    setState(() => aiContent = html);
+    await _saveStep(currentStep, html);
+  }
+
   void startEdit() => setState(() {
         resultHistory.reset(aiContent);
         instructionsOpen = false;
@@ -398,9 +420,11 @@ class _CellViewState extends ConsumerState<CellView> {
         key: const ValueKey('cell-edit'),
         source: resultHistory.text,
         fontSize: widget.fontSize,
-        editable: !refining,
+        editable: true,
         autoFocus: true,
+        showToolbar: true,
         onChanged: onEdited,
+        onEnterCommand: handleAiSlashCommand,
       );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -416,7 +440,15 @@ class _CellViewState extends ConsumerState<CellView> {
             ? TapToEdit(
                 enabled: !loading,
                 onTap: startEdit,
-                child: RichView(key: const ValueKey('cell-view'), source: aiContent, fontSize: widget.fontSize, streaming: loading),
+                child: RichView(
+                  key: const ValueKey('cell-view'),
+                  source: aiContent,
+                  fontSize: widget.fontSize,
+                  streaming: loading,
+                  selectionEdit: loading || refining
+                      ? null
+                      : SelectionEditConfig(lang: lang, bible: widget.bible, passage: item.passage, title: item.title, onApply: applyAiEdit),
+                ),
               )
             : (loading
                 ? const SizedBox()

@@ -279,6 +279,68 @@ class _StepViewState extends ConsumerState<StepView> {
     }
   }
 
+  // ── // 명령 · 드래그해서 고치기 ─────────────────────────────────────────────
+
+  /// //- · //+ 명령에 함께 보낼 내 연구 — 내용이 있는 단계만 (excludeIndex 단계는 제외)
+  List<StepData>? collectStepsData(int? excludeIndex) {
+    final defs = tab == 'sermon' ? steps : const [StepDef(0, 'research', '연구 내용', 'Research')];
+    final list = <StepData>[
+      for (final s in defs)
+        if (s.index != excludeIndex && stripHtml(item.steps[s.index]).trim().isNotEmpty)
+          (label: s.label(lang), content: stripHtml(item.steps[s.index])),
+    ];
+    return list.isEmpty ? null : list;
+  }
+
+  /// 결과 창의 // 명령 — "내 연구" 는 지금 단계를 뺀 다른 단계들 (예배·새벽은 단계가 하나라 없음)
+  Future<void> handleStepSlashCommand(SlashCommand cmd) async {
+    resultHistory.forceSnapshot();
+    setState(() => refining = true);
+    final useTheological = cmd.mode != 'research';
+    final useContext = cmd.mode != 'fresh';
+    final stepsData = useContext && tab == 'sermon' ? collectStepsData(currentStep) : null;
+    try {
+      await executeInlineCommand(cmd.instruction, useContext ? cmd.contextBefore : '', useContext ? cmd.contextAfter : '', lang,
+          widget.bible, item.passage, item.title, cmd.write, stepsData, useTheological);
+    } catch (_) {
+      cmd.write('');
+    } finally {
+      if (mounted) setState(() => refining = false);
+    }
+  }
+
+  /// 초안 창의 // 명령 — "내 연구" 는 모든 단계
+  Future<void> handleDraftSlashCommand(SlashCommand cmd) async {
+    draftHistory.forceSnapshot();
+    setState(() => refining = true);
+    final useTheological = cmd.mode != 'research';
+    final useContext = cmd.mode != 'fresh';
+    final stepsData = useContext ? collectStepsData(null) : null;
+    try {
+      await executeInlineCommand(cmd.instruction, useContext ? cmd.contextBefore : '', useContext ? cmd.contextAfter : '', lang,
+          widget.bible, item.passage, item.title, cmd.write, stepsData, useTheological);
+    } catch (_) {
+      cmd.write('');
+    } finally {
+      if (mounted) setState(() => refining = false);
+    }
+  }
+
+  /// 드래그해서 고친 결과를 단계 내용에 반영·저장
+  Future<void> applyResultEdit(String html) async {
+    setState(() => content = html);
+    await store.saveStep(item, storedIndex, html);
+  }
+
+  /// 드래그해서 고친 결과를 초안에 반영 (되돌리기 기록 유지)
+  Future<void> applyDraftEdit(String html) async {
+    draftHistory.forceSnapshot();
+    handleDraftChange(html);
+  }
+
+  SelectionEditConfig selectionEdit(Future<void> Function(String) onApply) =>
+      SelectionEditConfig(lang: lang, bible: widget.bible, passage: item.passage, title: item.title, onApply: onApply);
+
   // ── 결과 편집 · 저장 ──────────────────────────────────────────────────────
 
   void startEdit() => setState(() {
@@ -593,7 +655,9 @@ class _StepViewState extends ConsumerState<StepView> {
         fontSize: widget.fontSize,
         editable: true,
         autoFocus: true,
+        showToolbar: true,
         onChanged: onResultEdited,
+        onEnterCommand: handleStepSlashCommand,
       );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -619,6 +683,7 @@ class _StepViewState extends ConsumerState<StepView> {
                   fontSize: widget.fontSize,
                   streaming: loading,
                   onSelectedText: (t) => lastSelection = t,
+                  selectionEdit: loading || refining ? null : selectionEdit(applyResultEdit),
                 ),
               )
             : (loading
@@ -718,9 +783,11 @@ class _StepViewState extends ConsumerState<StepView> {
                   key: const ValueKey('draft-edit'),
                   source: draftHistory.text,
                   fontSize: widget.fontSize,
-                  editable: !refining,
+                  editable: true,
                   autoFocus: true,
+                  showToolbar: true,
                   onChanged: handleDraftChange,
+                  onEnterCommand: handleDraftSlashCommand,
                 )
               : draftHistory.text.isNotEmpty
                   ? TapToEdit(
@@ -731,6 +798,7 @@ class _StepViewState extends ConsumerState<StepView> {
                         source: draftHistory.text,
                         fontSize: widget.fontSize,
                         streaming: refining,
+                        selectionEdit: loading || refining ? null : selectionEdit(applyDraftEdit),
                       ),
                     )
                   : InkWell(
