@@ -23,8 +23,10 @@ Future<void> signInWithProvider(OAuthProvider provider) async {
   await _sb.auth.signInWithOAuth(provider, redirectTo: _redirect);
 }
 
-/// 이메일로 6자리 인증번호 보내기
-Future<void> sendEmailCode(String email) => _sb.auth.signInWithOtp(email: email.trim(), shouldCreateUser: true);
+/// 이메일로 로그인 메일 보내기 — 메일의 링크를 누르면 앱으로 돌아와 로그인된다
+/// (메일 템플릿에 6자리 번호를 넣으려면 발송 서버(SMTP)를 연결해야 한다 — 연결 후에는 번호로도 로그인)
+Future<void> sendEmailCode(String email) =>
+    _sb.auth.signInWithOtp(email: email.trim(), shouldCreateUser: true, emailRedirectTo: _redirect);
 
 /// 받은 6자리 번호로 로그인
 Future<void> verifyEmailCode(String email, String code) =>

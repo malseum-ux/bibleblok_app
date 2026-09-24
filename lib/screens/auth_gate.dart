@@ -137,13 +137,15 @@ class _AuthGateState extends ConsumerState<AuthGate> {
                 AppInput(controller: emailCtrl, hint: ko ? '이메일 주소' : 'Email address', onSubmitted: (_) => sendCode()),
                 const SizedBox(height: 12),
                 AccentButton(
-                  loading ? (ko ? '전송 중...' : 'Sending...') : (ko ? '이메일로 인증번호 받기' : 'Email me a code'),
+                  loading ? (ko ? '전송 중...' : 'Sending...') : (ko ? '이메일 로그인 메일 받기' : 'Email me a sign-in link'),
                   padding: const EdgeInsets.symmetric(vertical: 11),
                   onPressed: loading ? null : sendCode,
                 ),
               ] else ...[
                 Text(
-                  ko ? '${emailCtrl.text.trim()} 로 보낸 6자리 번호를 입력하세요.' : 'Enter the 6-digit code sent to ${emailCtrl.text.trim()}.',
+                  ko
+                      ? '${emailCtrl.text.trim()} 메일함을 확인해 주세요.\n메일의 로그인 링크를 누르면 바로 로그인됩니다. 메일에 6자리 번호가 있으면 아래에 입력해도 됩니다.'
+                      : 'Check ${emailCtrl.text.trim()}.\nOpen the sign-in link in the email, or enter the 6-digit code if the email has one.',
                   style: TextStyle(fontSize: 13, color: c.text, height: 1.6),
                 ),
                 const SizedBox(height: 10),
@@ -160,7 +162,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
                         codeSent = false;
                         codeCtrl.clear();
                       })),
-                  GhostTextButton(ko ? '번호 다시 받기' : 'Resend code', opacity: 0.8, fontSize: 12, onPressed: sendCode),
+                  GhostTextButton(ko ? '메일 다시 받기' : 'Resend email', opacity: 0.8, fontSize: 12, onPressed: sendCode),
                 ]),
               ],
               if (error != null) ...[
