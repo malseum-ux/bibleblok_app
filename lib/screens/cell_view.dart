@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants.dart';
 import '../models/item.dart';
 import '../providers/app_state.dart';
+import '../providers/plan.dart';
 import '../services/ai.dart';
 import '../services/file_io.dart';
 import '../services/prompts.dart';
@@ -128,6 +129,11 @@ class _CellViewState extends ConsumerState<CellView> {
   static final _rememberRe = RegExp(r'기억해(?:줘|주세요)?');
 
   Future<void> generate() async {
+    // 구독 확인 (판별은 providers/plan.dart 한 곳에서만)
+    if (!canUseAi(ref.read(subscriptionProvider).valueOrNull)) {
+      setState(() => error = !en ? '구독이 필요합니다.' : 'A subscription is required.');
+      return;
+    }
     setState(() {
       loading = true;
       editing = false;

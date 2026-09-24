@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants.dart';
 import '../providers/app_state.dart';
 import '../providers/auth.dart';
+import '../providers/plan.dart';
 import '../services/file_io.dart';
 import '../services/web_import.dart';
 import '../theme/app_colors.dart';
@@ -222,6 +223,18 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text('${providerLabel(user)} · ${user.email ?? ''}', style: TextStyle(fontSize: 12, color: c.textMuted)),
                 ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  switch (ref.watch(subscriptionProvider).valueOrNull) {
+                    SubscriptionState(active: true, :final expiresAt) =>
+                      '${ko ? '구독' : 'Subscription'}: ${ko ? '사용 중' : 'Active'}${expiresAt != null ? ' (~${expiresAt.toLocal().toIso8601String().substring(0, 10)})' : ''}',
+                    SubscriptionState(ready: false) => ko ? '구독: 준비 중' : 'Subscription: coming soon',
+                    _ => ko ? '구독: 없음' : 'Subscription: none',
+                  },
+                  style: TextStyle(fontSize: 12, color: c.textMuted),
+                ),
+              ),
               OutlineBtn(ko ? '로그아웃' : 'Sign out', alignLeft: true, onPressed: () {
                 widget.onClose();
                 signOut();

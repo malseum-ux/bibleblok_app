@@ -9,3 +9,6 @@ const kAiEndpoint = String.fromEnvironment('AI_ENDPOINT', defaultValue: '$kSupab
 
 // 회원 탈퇴 (supabase/functions/bibleblok-delete-account)
 const kDeleteAccountEndpoint = '$kSupabaseUrl/functions/v1/bibleblok-delete-account';
+
+// 구독 확인 — 결제를 붙인 뒤 서버의 REQUIRE_SUBSCRIPTION=true 와 함께 켠다
+const kRequireSubscription = false;

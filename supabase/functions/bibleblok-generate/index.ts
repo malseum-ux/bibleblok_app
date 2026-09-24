@@ -30,6 +30,15 @@ Deno.serve(async (req) => {
   if (!user || user.is_anonymous) return json({ error: { message: '로그인이 필요합니다.' } }, 401)
   if (!DEEPSEEK_API_KEY) return json({ error: { message: 'API key not configured on server' } }, 500)
 
+  // 구독 확인 — REQUIRE_SUBSCRIPTION=true 일 때만 (결제를 붙이기 전까지는 꺼 둔다)
+  if (Deno.env.get('REQUIRE_SUBSCRIPTION') === 'true') {
+    const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+    const { data: sub } = await admin.from('subscriptions')
+      .select('status, expires_at').eq('user_id', user.id).eq('app', 'bibleblok').maybeSingle()
+    const active = sub?.status === 'active' && (!sub.expires_at || new Date(sub.expires_at) > new Date())
+    if (!active) return json({ error: { message: '구독이 필요합니다.', code: 'subscription_required' } }, 402)
+  }
+
   try {
     const body = await req.json()
     const messages = Array.isArray(body?.messages) ? body.messages : null
