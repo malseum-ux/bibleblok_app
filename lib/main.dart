@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'config.dart';
 import 'constants.dart';
 import 'providers/app_state.dart';
+import 'providers/auth.dart';
+import 'screens/auth_gate.dart';
 import 'screens/folder_gate.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_colors.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(url: kSupabaseUrl, publishableKey: kSupabaseAnonKey);
   runApp(const ProviderScope(child: BibleBlokApp()));
 }
 
@@ -34,6 +39,11 @@ class _BibleBlokAppState extends ConsumerState<BibleBlokApp> {
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
     final ready = ref.watch(folderProvider.select((f) => f.status == FolderStatus.ready));
+    // 로그인 → 저장 폴더 → 메인 순서
+    final user = ref.watch(authUserProvider);
+    final Widget home = user.isLoading && !user.hasValue
+        ? const SizedBox()
+        : (user.valueOrNull == null ? const AuthGate() : (ready ? const HomeScreen() : const FolderGate()));
     return MaterialApp(
       title: appName(settings.lang),
       debugShowCheckedModeBanner: false,
@@ -48,7 +58,7 @@ class _BibleBlokAppState extends ConsumerState<BibleBlokApp> {
       localizationsDelegates: FlutterQuillLocalizations.localizationsDelegates,
       supportedLocales: const [Locale('ko'), Locale('en')],
       locale: Locale(settings.lang),
-      home: ready ? const HomeScreen() : const FolderGate(),
+      home: home,
     );
   }
 }

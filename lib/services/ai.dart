@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
 import 'http_client_stub.dart' if (dart.library.js_interop) 'http_client_web.dart';
@@ -10,6 +11,13 @@ import 'http_client_stub.dart' if (dart.library.js_interop) 'http_client_web.dar
 Uri _endpoint() {
   if (kAiEndpoint.isEmpty) throw Exception('AI 서버 주소가 설정되지 않았습니다');
   return Uri.parse(kAiEndpoint);
+}
+
+/// 로그인 증표를 붙인 요청 머리말 — AI 서버는 로그인한 사용자만 받는다
+Map<String, String> _headers() {
+  final token = Supabase.instance.client.auth.currentSession?.accessToken;
+  if (token == null) throw Exception('로그인이 필요합니다.');
+  return {'content-type': 'application/json', 'Authorization': 'Bearer $token', 'apikey': kSupabaseAnonKey};
 }
 
 /// 사용자가 중지를 눌렀을 때 던지는 예외 (웹의 AbortError)
@@ -46,7 +54,7 @@ Future<String> streamCompletion(String prompt, void Function(String full)? onChu
   var fullText = '';
   try {
     final req = http.Request('POST', _endpoint())
-      ..headers['content-type'] = 'application/json'
+      ..headers.addAll(_headers())
       ..body = jsonEncode({
         'model': 'deepseek-chat',
         'max_tokens': 8000,
@@ -124,7 +132,7 @@ Future<String> fetchLectionary(String date, String season, String lang, String b
 
   final res = await http.post(
     _endpoint(),
-    headers: {'content-type': 'application/json'},
+    headers: _headers(),
     body: jsonEncode({
       'model': 'deepseek-chat',
       'max_tokens': 200,

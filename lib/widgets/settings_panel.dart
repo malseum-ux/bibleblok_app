@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../constants.dart';
 import '../providers/app_state.dart';
+import '../providers/auth.dart';
 import '../services/file_io.dart';
 import '../theme/app_colors.dart';
 import 'ui.dart';
@@ -45,6 +46,29 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
       if (mounted) setState(() => importStatus = 'done:$added');
     } catch (e) {
       if (mounted) setState(() => importStatus = 'error:${'$e'.replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  /// 회원 탈퇴 — 구독은 스토어에서 따로 해지해야 하고, 폴더의 파일은 남는다는 것을 알린 뒤 한 번 더 확인
+  Future<void> _confirmDelete(bool ko) async {
+    final ok = await confirmDialog(
+      context,
+      ko
+          ? '회원 탈퇴하시겠습니까?\n\n'
+              '· 계정과 로그인 정보가 삭제되며 되돌릴 수 없습니다.\n'
+              '· 구독 중이라면 App Store·Google Play 에서 따로 해지하셔야 합니다.\n'
+              '· 저장 폴더에 있는 설교·교재 파일은 지워지지 않고 그대로 남습니다.'
+          : 'Delete your account?\n\n'
+              '· Your account and sign-in data will be deleted permanently.\n'
+              '· Cancel any subscription separately in the App Store or Google Play.\n'
+              '· Files in your data folder are kept.',
+    );
+    if (!ok) return;
+    try {
+      await deleteAccount();
+      widget.onClose();
+    } catch (e) {
+      if (mounted) showAlert(context, '$e'.replaceFirst('Exception: ', ''));
     }
   }
 
@@ -155,6 +179,19 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
               Text(store.fs.displayName, style: TextStyle(fontSize: 13, color: c.text)),
               const SizedBox(height: 8),
               OutlineBtn(ko ? '다른 폴더로 변경' : 'Change Folder', alignLeft: true, onPressed: () => ref.read(folderProvider).pickFolder()),
+            ]),
+            section(ko ? '계정' : 'Account', [
+              if (ref.watch(authUserProvider).valueOrNull case final user?)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('${providerLabel(user)} · ${user.email ?? ''}', style: TextStyle(fontSize: 12, color: c.textMuted)),
+                ),
+              OutlineBtn(ko ? '로그아웃' : 'Sign out', alignLeft: true, onPressed: () {
+                widget.onClose();
+                signOut();
+              }),
+              const SizedBox(height: 8),
+              OutlineBtn(ko ? '회원 탈퇴' : 'Delete Account', alignLeft: true, onPressed: () => _confirmDelete(ko)),
             ]),
             if (store.defaultKeywords.isNotEmpty)
               section(ko ? '기억된 지시어' : 'Saved Keywords', [
