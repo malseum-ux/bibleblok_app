@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'deepseek-chat', messages, stream, max_tokens: maxTokens }),
+      // thinking disabled — 생각 과정 끄기 (예전 deepseek-chat 과 같은 즉답 방식, flash 는 기본이 생각 모드)
+      body: JSON.stringify({ model: 'deepseek-flash', thinking: { type: 'disabled' }, messages, stream, max_tokens: maxTokens }),
     })
 
     if (!response.ok) {

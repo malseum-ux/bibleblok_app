@@ -56,7 +56,8 @@ Future<String> streamCompletion(String prompt, void Function(String full)? onChu
     final req = http.Request('POST', _endpoint())
       ..headers.addAll(_headers())
       ..body = jsonEncode({
-        'model': 'deepseek-chat',
+        'model': 'deepseek-flash',
+      'thinking': {'type': 'disabled'},
         'max_tokens': 8000,
         'stream': true,
         'messages': [
@@ -134,7 +135,8 @@ Future<String> fetchLectionary(String date, String season, String lang, String b
     _endpoint(),
     headers: _headers(),
     body: jsonEncode({
-      'model': 'deepseek-chat',
+      'model': 'deepseek-flash',
+      'thinking': {'type': 'disabled'},
       'max_tokens': 200,
       'stream': false,
       'messages': [
