@@ -10,7 +10,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') ?? ''
+// 성경과설교 전용 키 — 비어 있으면 예전 공용 키로 대신 작동
+const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_KEY_BIBLEBLOK') || Deno.env.get('DEEPSEEK_API_KEY') || ''
 const MAX_TOKENS = 8000
 
 function json(body: unknown, status = 200) {

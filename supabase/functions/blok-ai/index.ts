@@ -1,5 +1,6 @@
 // BlokZip 휴대폰 앱 공용 AI 중계 — 아멘블록·이음·바이타블록·오토블록
-// 앱 안에 DeepSeek 키를 넣지 않기 위한 서버 함수. 키는 Supabase 비밀 값(DEEPSEEK_API_KEY)에만 있다.
+// 앱 안에 DeepSeek 키를 넣지 않기 위한 서버 함수. 키는 Supabase 비밀 값에만 있다.
+// 앱마다 키를 따로 쓴다 (DEEPSEEK_KEY_AMENBLOK 등) — 앱별 사용량을 딥식 화면에서 나눠 보기 위함
 //
 // 보호 장치 (로그인이 없는 앱도 있어 "로그인한 사람만" 받을 수는 없다)
 // - x-blok-app 머리말이 등록된 앱 이름일 때만 받는다
@@ -12,7 +13,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') ?? ''
 const ALLOWED_APPS = new Set(['amenblok', 'amiblok', 'vitablok', 'autoblok'])
 const MAX_TOKENS = 4000
 const MAX_INPUT_CHARS = 60000
@@ -41,7 +41,9 @@ Deno.serve(async (req) => {
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   if (tooMany(`${app}:${ip}`)) return json({ error: { message: '잠시 후 다시 시도해 주세요.' } }, 429)
-  if (!DEEPSEEK_API_KEY) return json({ error: { message: 'API key not configured on server' } }, 500)
+  // 그 앱 전용 키 — 비어 있으면 예전 공용 키로 대신 작동
+  const apiKey = Deno.env.get(`DEEPSEEK_KEY_${app.toUpperCase()}`) || Deno.env.get('DEEPSEEK_API_KEY') || ''
+  if (!apiKey) return json({ error: { message: 'API key not configured on server' } }, 500)
 
   try {
     const body = await req.json()
@@ -61,7 +63,7 @@ Deno.serve(async (req) => {
 
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
     const text = await response.text()
