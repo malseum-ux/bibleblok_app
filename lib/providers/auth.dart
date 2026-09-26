@@ -9,10 +9,12 @@ import '../config.dart';
 SupabaseClient get _sb => Supabase.instance.client;
 
 /// 지금 로그인한 사용자 (없으면 null) — 로그인·로그아웃할 때마다 바뀐다
+/// 로그인 연장(토큰 갱신) 실패 같은 오류가 와도 듣기를 멈추지 않는다
+/// (예전에는 오류 한 번에 듣기가 끝나서, 그 뒤 로그아웃해도 화면이 바뀌지 않았다)
 final authUserProvider = StreamProvider<User?>((ref) async* {
   yield _sb.auth.currentUser;
-  await for (final state in _sb.auth.onAuthStateChange) {
-    yield state.session?.user;
+  await for (final _ in _sb.auth.onAuthStateChange.handleError((_) {})) {
+    yield _sb.auth.currentUser;
   }
 });
 
@@ -32,7 +34,14 @@ Future<void> sendEmailCode(String email) =>
 Future<void> verifyEmailCode(String email, String code) =>
     _sb.auth.verifyOTP(email: email.trim(), token: code.trim(), type: OtpType.email);
 
-Future<void> signOut() => _sb.auth.signOut();
+/// 로그아웃 — 서버 연결이 실패해도 이 기기의 로그인 정보는 먼저 지워진다
+Future<void> signOut() async {
+  try {
+    await _sb.auth.signOut();
+  } catch (_) {
+    // 서버 쪽 로그아웃 실패는 무시 (이 기기에서는 이미 로그아웃됨)
+  }
+}
 
 /// 회원 탈퇴 — 서버에서 계정을 지운 뒤 로그아웃
 Future<void> deleteAccount() async {

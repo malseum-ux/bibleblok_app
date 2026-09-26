@@ -235,9 +235,13 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
                   style: TextStyle(fontSize: 12, color: c.textMuted),
                 ),
               ),
-              OutlineBtn(ko ? '로그아웃' : 'Sign out', alignLeft: true, onPressed: () {
+              OutlineBtn(ko ? '로그아웃' : 'Sign out', alignLeft: true, onPressed: () async {
+                // 패널이 닫힌 뒤에도 쓸 수 있도록 먼저 잡아 둔다
+                final container = ProviderScope.containerOf(context, listen: false);
                 widget.onClose();
-                signOut();
+                await signOut();
+                // 알림이 늦거나 빠져도 로그인 상태를 다시 읽어 로그인 화면으로 바꾼다
+                container.invalidate(authUserProvider);
               }),
               const SizedBox(height: 8),
               OutlineBtn(ko ? '회원 탈퇴' : 'Delete Account', alignLeft: true, onPressed: () => _confirmDelete(ko)),

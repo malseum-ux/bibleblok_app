@@ -26,6 +26,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String tab = 'sermon';
   String? selectedId;
   String? selectedFolder;
+
+  /// 선택된 폴더가 [path] 이거나 그 안쪽인지 — 폴더 이름·위치가 바뀌면 선택을 풀 때 쓴다
+  static bool _isInside(String? selected, String path) => selected != null && (selected == path || selected.startsWith('$path/'));
   bool settingsOpen = false;
   bool? sidebarVisible; // null = 화면 폭으로 결정 (넓으면 보임)
   double sidebarWidth = 240;
@@ -175,7 +178,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onMoveItem: (item, folder) => _guard(() => s.moveItem(item, folder), '이동 실패: ', 'Move failed: '),
       onMoveFolder: (path, parent) => _guard(() async {
         await s.moveFolder(tab, path, parent);
-        if (selectedFolder == path) setState(() => selectedFolder = null);
+        if (_isInside(selectedFolder, path)) setState(() => selectedFolder = null);
       }, '이동 실패: ', 'Move failed: '),
       onFolderSelect: (path) => setState(() {
         selectedFolder = path;
@@ -183,7 +186,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }),
       onRenameFolder: (path, name) => _guard(() async {
         await s.renameFolder(tab, path, name);
-        if (selectedFolder == path) setState(() => selectedFolder = null);
+        if (_isInside(selectedFolder, path)) setState(() => selectedFolder = null);
       }, '이름 변경 실패: ', 'Rename failed: '),
       width: isMobile ? 280 : sidebarWidth,
       searchItems: searchResults,
