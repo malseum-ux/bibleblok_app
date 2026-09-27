@@ -64,4 +64,51 @@ void main() {
     await tester.pumpAndSettle();
     expect(item.draft, '<p>첫 문단</p><p>둘째 문단</p>');
   });
+
+  testWidgets('AI 생성 화면: 드래그로 고친 뒤 되돌리기·다시하기가 화면과 파일에 반영된다', (tester) async {
+    final (_, item) = await _setup(tester);
+    final undo = find.byIcon(Icons.undo).first; // 첫 번째 = AI 생성 화면 (두 번째는 초안 창)
+    final redo = find.byIcon(Icons.redo).first;
+    final state = tester.state(find.byType(StepView)) as dynamic;
+    await state.applyResultEdit('<p>고친 문단</p>');
+    await tester.pumpAndSettle();
+    expect(item.steps[0], '<p>고친 문단</p>');
+
+    await tester.tap(undo);
+    await tester.pumpAndSettle();
+    expect(item.steps[0], '첫 문단\n\n둘째 문단');
+
+    await tester.tap(redo);
+    await tester.pumpAndSettle();
+    expect(item.steps[0], '<p>고친 문단</p>');
+  });
+
+  testWidgets('AI 생성 화면: 다른 단계로 가면 되돌리기 기록이 새로 시작된다', (tester) async {
+    await _setup(tester);
+    final state = tester.state(find.byType(StepView)) as dynamic;
+    await state.applyResultEdit('<p>고친 문단</p>');
+    await tester.pumpAndSettle();
+    expect(state.resultHistory.canUndo, isTrue);
+    state.selectStep(1);
+    await tester.pumpAndSettle();
+    expect(state.resultHistory.canUndo, isFalse);
+  });
+
+  testWidgets('초안창: 되돌리기·다시하기가 즉시 파일에 저장된다', (tester) async {
+    final (_, item) = await _setup(tester);
+    await tester.tap(find.text('설교문에 반영'));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+    expect(item.draft, '<p>첫 문단</p><p>둘째 문단</p>');
+    final state = tester.state(find.byType(StepView)) as dynamic;
+    state.draftHistory.forceSnapshot();
+
+    await tester.tap(find.byIcon(Icons.undo).last); // 마지막 = 초안창
+    await tester.pumpAndSettle();
+    expect(item.draft, '');
+
+    await tester.tap(find.byIcon(Icons.redo).last);
+    await tester.pumpAndSettle();
+    expect(item.draft, '<p>첫 문단</p><p>둘째 문단</p>');
+  });
 }

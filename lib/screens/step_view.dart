@@ -116,6 +116,8 @@ class _StepViewState extends ConsumerState<StepView> {
   /// 단계가 바뀔 때 — 웹의 여러 useEffect 를 한곳에
   void _onStepChanged() {
     content = item.steps[storedIndex] ?? '';
+    // AI 생성 화면의 되돌리기 기록은 단계가 바뀔 때만 새로 시작한다
+    resultHistory.reset(content);
     error = null;
     instructionsOpen = false;
     selectedItems = currentItems.map((i) => i.key).toList();
@@ -199,6 +201,7 @@ class _StepViewState extends ConsumerState<StepView> {
     }
 
     final prevContent = content;
+    resultHistory.record(prevContent);
     final sep = prevContent.isNotEmpty ? '\n\n${'─' * 30}\n\n' : '';
     final activeItems = hasItems ? selectedItems : null;
     final memory = store.buildMemoryPrompt(tab, step.key);
@@ -236,6 +239,7 @@ class _StepViewState extends ConsumerState<StepView> {
             effectiveKeyword, customStepTexts(), memory);
       }
       final combined = prevContent + sep + full;
+      resultHistory.record(combined);
       await store.saveStep(item, idx, combined);
       if (mounted) setState(() => content = combined);
     } on AbortedException {
@@ -256,6 +260,14 @@ class _StepViewState extends ConsumerState<StepView> {
       item.draft = text;
       store.saveItem(item);
     });
+  }
+
+  /// 초안창 되돌리기·다시하기 — 누르는 즉시 파일에도 저장 (웹과 같다)
+  Future<void> applyDraftHistory(VoidCallback move) async {
+    move();
+    draftTimer?.cancel();
+    item.draft = draftHistory.text;
+    await store.saveItem(item);
   }
 
   /// 선택한 글(없으면 전체)을 설교문 초안 끝에 붙인다
@@ -334,6 +346,7 @@ class _StepViewState extends ConsumerState<StepView> {
 
   /// 드래그해서 고친 결과를 단계 내용에 반영·저장
   Future<void> applyResultEdit(String html) async {
+    resultHistory.record(html);
     setState(() => content = html);
     await store.saveStep(item, storedIndex, html);
   }
@@ -350,17 +363,27 @@ class _StepViewState extends ConsumerState<StepView> {
   // ── 결과 편집 · 저장 ──────────────────────────────────────────────────────
 
   void startEdit() => setState(() {
-        resultHistory.reset(content);
+        if (resultHistory.text != content) resultHistory.record(content);
         instructionsOpen = false;
         editing = true;
       });
 
   void finishEdit() {
     if (!editing) return;
+    resultHistory.forceSnapshot();
     setState(() {
       content = resultHistory.text;
       editing = false;
     });
+  }
+
+  /// AI 생성 화면 되돌리기·다시하기 — 바뀐 내용을 화면과 파일에 함께 반영 (웹과 같다)
+  Future<void> applyStepHistory(VoidCallback move) async {
+    move();
+    final text = resultHistory.text;
+    resultEditTimer?.cancel();
+    setState(() => content = text);
+    await store.saveStep(item, storedIndex, text);
   }
 
   void onResultEdited(String html) {
@@ -607,6 +630,10 @@ class _StepViewState extends ConsumerState<StepView> {
               FontSizeButtons(fontSize: widget.fontSize, onChange: widget.onFontSizeChange, height: 28, fontSize11: false),
               const SizedBox(width: 8),
             ],
+            UndoButton(icon: Icons.undo, enabled: resultHistory.canUndo && !loading && !refining, onPressed: () => applyStepHistory(resultHistory.undo)),
+            const SizedBox(width: 4),
+            UndoButton(icon: Icons.redo, enabled: resultHistory.canRedo && !loading && !refining, onPressed: () => applyStepHistory(resultHistory.redo)),
+            const SizedBox(width: 8),
             AccentButton(
               loading
                   ? (ko ? '중지' : 'Stop')
@@ -778,9 +805,9 @@ class _StepViewState extends ConsumerState<StepView> {
             const SizedBox(width: 8),
             FontSizeButtons(fontSize: widget.fontSize, onChange: widget.onFontSizeChange, height: 24, fontSize11: true),
             const SizedBox(width: 8),
-            UndoButton(icon: Icons.undo, enabled: draftHistory.canUndo, onPressed: draftHistory.undo),
+            UndoButton(icon: Icons.undo, enabled: draftHistory.canUndo, onPressed: () => applyDraftHistory(draftHistory.undo)),
             const SizedBox(width: 8),
-            UndoButton(icon: Icons.redo, enabled: draftHistory.canRedo, onPressed: draftHistory.redo),
+            UndoButton(icon: Icons.redo, enabled: draftHistory.canRedo, onPressed: () => applyDraftHistory(draftHistory.redo)),
           ]),
         ),
         Expanded(

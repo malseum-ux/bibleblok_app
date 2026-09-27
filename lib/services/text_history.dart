@@ -70,6 +70,14 @@ class TextHistory extends ChangeNotifier {
     _push(_text);
   }
 
+  /// 값을 바로 기록 지점으로 남긴다 — AI 생성·드래그 수정처럼 한 번에 바뀌는 경우 (웹 record 와 같다)
+  void record(String val) {
+    _timer?.cancel();
+    if (_text != _snapshots[_idx]) _push(_text);
+    _text = val;
+    _push(val);
+  }
+
   @override
   void dispose() {
     _timer?.cancel();

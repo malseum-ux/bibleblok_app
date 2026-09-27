@@ -99,6 +99,7 @@ class _CellViewState extends ConsumerState<CellView> {
 
   void _onStepChanged() {
     aiContent = item.steps[currentStep] ?? '';
+    // 되돌리기 기록은 단계가 바뀔 때만 새로 시작한다
     resultHistory.reset(aiContent);
     instructionsOpen = false;
     error = null;
@@ -150,6 +151,7 @@ class _CellViewState extends ConsumerState<CellView> {
     }
 
     final prevContent = aiContent;
+    resultHistory.record(prevContent);
     final sep = prevContent.isNotEmpty ? '\n\n${'─' * 30}\n\n' : '';
     final titleLine = '# ${step.ko} — ${cellSubtitles[step.key] ?? ''}\n\n';
     var accumulated = prevContent + sep + titleLine;
@@ -176,7 +178,7 @@ class _CellViewState extends ConsumerState<CellView> {
         accumulated = prevContent + sep + titleLine + text;
         if (mounted) setState(() => aiContent = accumulated);
       }, customText, effectiveKeyword, sermonContext, memory);
-      resultHistory.reset(accumulated);
+      resultHistory.record(accumulated);
       await _saveStep(idx, accumulated);
     } on AbortedException {
       // 사용자가 중지
@@ -210,18 +212,20 @@ class _CellViewState extends ConsumerState<CellView> {
 
   /// 드래그해서 고친 결과를 교재 내용에 반영·저장
   Future<void> applyAiEdit(String html) async {
+    resultHistory.record(html);
     setState(() => aiContent = html);
     await _saveStep(currentStep, html);
   }
 
   void startEdit() => setState(() {
-        resultHistory.reset(aiContent);
+        if (resultHistory.text != aiContent) resultHistory.record(aiContent);
         instructionsOpen = false;
         editing = true;
       });
 
   void _commitEdit() {
     editing = false;
+    resultHistory.forceSnapshot();
     aiContent = resultHistory.text;
     _saveStep(currentStep, aiContent);
   }
@@ -230,6 +234,15 @@ class _CellViewState extends ConsumerState<CellView> {
     resultHistory.onChange(html);
     editTimer?.cancel();
     editTimer = Timer(const Duration(milliseconds: 800), () => _saveStep(currentStep, resultHistory.text));
+  }
+
+  /// 되돌리기·다시하기 — 바뀐 내용을 화면과 파일에 함께 반영 (웹과 같다)
+  Future<void> applyHistory(VoidCallback move) async {
+    move();
+    final text = resultHistory.text;
+    editTimer?.cancel();
+    setState(() => aiContent = text);
+    await _saveStep(currentStep, text);
   }
 
   Future<void> handleSave() async {
@@ -382,6 +395,10 @@ class _CellViewState extends ConsumerState<CellView> {
                   FontSizeButtons(fontSize: widget.fontSize, onChange: widget.onFontSizeChange),
                   const SizedBox(width: 8),
                 ],
+                UndoButton(icon: Icons.undo, enabled: resultHistory.canUndo && !loading && !refining, onPressed: () => applyHistory(resultHistory.undo)),
+                const SizedBox(width: 4),
+                UndoButton(icon: Icons.redo, enabled: resultHistory.canRedo && !loading && !refining, onPressed: () => applyHistory(resultHistory.redo)),
+                const SizedBox(width: 8),
                 AccentButton(
                   loading ? (en ? 'Stop' : '중지') : (aiContent.isNotEmpty ? (en ? 'Regenerate' : '다시 생성') : (en ? 'Generate' : 'AI 생성')),
                   fontSize: 13,
