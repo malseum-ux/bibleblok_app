@@ -19,7 +19,7 @@ final authUserProvider = StreamProvider<User?>((ref) async* {
 });
 
 /// 웹은 지금 페이지로 돌아오고, 앱은 앱 주소로 돌아온다 (앱 주소는 Mac 빌드 단계에서 등록)
-String? get _redirect => kIsWeb ? Uri.base.origin : 'com.blokzip.bibleblokapp://login-callback';
+String? get _redirect => kIsWeb ? Uri.base.origin : 'com.blokzip.bibleblok://login-callback';
 
 Future<void> signInWithProvider(OAuthProvider provider) async {
   await _sb.auth.signInWithOAuth(provider, redirectTo: _redirect);

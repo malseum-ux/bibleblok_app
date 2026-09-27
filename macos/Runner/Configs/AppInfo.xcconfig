@@ -8,7 +8,7 @@
 PRODUCT_NAME = bibleblok_app
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.blokzip.bibleblokApp
+PRODUCT_BUNDLE_IDENTIFIER = com.blokzip.bibleblok
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.blokzip. All rights reserved.

@@ -16,7 +16,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.blokzip.bibleblok_app"
+        // 스토어에 올라가는 앱 고유 이름 — iPhone·Mac 과 같게 (namespace 는 코드 묶음 이름이라 그대로 둔다)
+        applicationId = "com.blokzip.bibleblok"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
