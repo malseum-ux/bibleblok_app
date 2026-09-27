@@ -46,6 +46,8 @@ dependencies:
   html: ^0.15.7
   supabase_flutter: ^2.17.2
   path_provider: ^2.1.6
+  package_info_plus: ^10.2.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

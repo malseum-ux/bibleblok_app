@@ -1,8 +1,11 @@
-// 바이블블록 AI 중계 — 로그인한 사용자만 DeepSeek 을 부를 수 있다 (웹 api/generate.ts 의 잠금 있는 버전)
+// 성경과설교 AI 중계 — 웹·플러터 두 앱이 함께 쓴다. 로그인한 사용자만 DeepSeek 을 부를 수 있다
+// - 앱은 { kind, params } 만 보내고, 지시문은 여기서 조립한다 (../_shared/bibleblok_prompts.js)
+//   → 지시문을 고치면 이 함수만 다시 올리면 모든 앱에 즉시 반영된다
 // - Supabase 로그인 토큰을 확인하고, 없으면 401
 // - 모델·최대 길이는 서버에서 고정해 다른 용도로 쓰이지 않게 한다
-// - 브라우저(플러터 웹)에서도 읽을 수 있도록 모든 응답에 CORS 허가를 붙인다
+// - 브라우저(웹)에서도 읽을 수 있도록 모든 응답에 CORS 허가를 붙인다
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { buildRequest } from '../_shared/bibleblok_prompts.js'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +15,7 @@ const corsHeaders = {
 
 // 성경과설교 전용 키 — 비어 있으면 예전 공용 키로 대신 작동
 const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_KEY_BIBLEBLOK') || Deno.env.get('DEEPSEEK_API_KEY') || ''
-const MAX_TOKENS = 8000
+const MAX_INPUT_CHARS = 300000 // 재료(연구 내용·초안 등) 전체 글자 수 상한
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -41,11 +44,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json()
-    const messages = Array.isArray(body?.messages) ? body.messages : null
-    if (!messages) return json({ error: { message: 'messages 가 없습니다.' } }, 400)
-    const stream = body?.stream !== false
-    const maxTokens = Math.min(Number(body?.max_tokens) || MAX_TOKENS, MAX_TOKENS)
+    const raw = await req.text()
+    if (raw.length > MAX_INPUT_CHARS) return json({ error: { message: '요청이 너무 깁니다.' } }, 413)
+    const body = JSON.parse(raw)
+    const built = typeof body?.kind === 'string' ? buildRequest(body.kind, body.params) : null
+    if (!built) return json({ error: { message: '알 수 없는 요청입니다.' } }, 400)
+    const { messages, stream, maxTokens } = built
 
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',

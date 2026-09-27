@@ -7,6 +7,7 @@ import '../constants.dart';
 import '../models/item.dart';
 import '../providers/app_state.dart';
 import '../services/store.dart';
+import '../services/update_check.dart';
 import '../theme/app_colors.dart';
 import '../widgets/forms.dart';
 import '../widgets/settings_panel.dart';
@@ -30,6 +31,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   /// 선택된 폴더가 [path] 이거나 그 안쪽인지 — 폴더 이름·위치가 바뀌면 선택을 풀 때 쓴다
   static bool _isInside(String? selected, String path) => selected != null && (selected == path || selected.startsWith('$path/'));
   bool settingsOpen = false;
+  UpdateInfo? update; // 켤 때 조용히 확인한 업데이트 — 새 버전이 있으면 설정 버튼에 점 표시
+
+  @override
+  void initState() {
+    super.initState();
+    checkForUpdate().then((info) {
+      if (mounted && info.hasUpdate) setState(() => update = info);
+    }).catchError((_) {});
+  }
   bool? sidebarVisible; // null = 화면 폭으로 결정 (넓으면 보임)
   double sidebarWidth = 240;
   bool searchOpen = false;
@@ -195,8 +205,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     return Scaffold(
-      backgroundColor: c.bg,
-      body: Stack(children: [
+      // 안전 영역(노치·상태 표시줄·홈 막대) 바깥은 헤더와 같은 색으로 이어 보이게
+      backgroundColor: c.bgSidebar,
+      body: SafeArea(
+          child: Stack(children: [
         Column(children: [
           _header(context, lang, isMobile, showSidebar),
           Expanded(
@@ -219,9 +231,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Positioned.fill(
             child: GestureDetector(onTap: () => setState(() => settingsOpen = false), child: Container(color: Colors.black.withValues(alpha: 0.25))),
           ),
-          Positioned(top: 0, right: 0, bottom: 0, child: SettingsPanel(onClose: () => setState(() => settingsOpen = false))),
+          Positioned(top: 0, right: 0, bottom: 0, child: SettingsPanel(onClose: () => setState(() => settingsOpen = false), initialUpdate: update)),
         ],
-      ]),
+      ])),
     );
   }
 
@@ -339,7 +351,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
         BoxIconButton(icon: Icons.search, tooltip: '찾기', active: searchOpen, onPressed: () => setState(() => searchOpen ? closeSearch() : searchOpen = true)),
         const SizedBox(width: 12),
-        BoxIconButton(icon: Icons.settings_outlined, tooltip: lang == 'ko' ? '설정' : 'Settings', onPressed: () => setState(() => settingsOpen = true)),
+        Stack(clipBehavior: Clip.none, children: [
+          BoxIconButton(
+            icon: Icons.settings_outlined,
+            tooltip: update != null ? (lang == 'ko' ? '설정 — 새 버전이 있습니다' : 'Settings — update available') : (lang == 'ko' ? '설정' : 'Settings'),
+            onPressed: () => setState(() => settingsOpen = true),
+          ),
+          if (update != null)
+            Positioned(top: 3, right: 3, child: IgnorePointer(child: Container(width: 7, height: 7, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)))),
+        ]),
       ]),
     );
   }

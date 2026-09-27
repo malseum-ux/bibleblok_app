@@ -73,20 +73,6 @@ class Option {
 
 const languages = [Option('ko', '한국어'), Option('en', 'English')];
 
-const bibleVersionsKo = [
-  Option('개역개정성경', '개역개정'),
-  Option('공동번역성경', '공동번역'),
-  Option('새한글성경', '새한글성경'),
-];
-
-const bibleVersionsEn = [
-  Option('ESV', 'ESV'),
-  Option('NIV', 'NIV'),
-  Option('NKJV', 'NKJV'),
-  Option('NASB', 'NASB'),
-  Option('NLT', 'NLT'),
-  Option('KJV', 'KJV'),
-];
 
 const themes = [
   Option('system', '시스템', 'System'),

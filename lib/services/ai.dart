@@ -1,7 +1,9 @@
-// AI 요청 — 웹 claude.js 의 streamCompletion / WorshipForm.fetchLectionary 와 같은 요청 내용
+// AI 요청 보내기 — 지시문은 서버(bibleblok-generate)가 조립하고, 여기서는 { kind, params } 를 보내 결과를 받는다
+// (웹 src/claude.js 의 streamKind · fetchLectionary 와 같은 요청)
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,9 +15,13 @@ Uri _endpoint() {
   return Uri.parse(kAiEndpoint);
 }
 
+/// 시험용 — 로그인 없이 요청 모양을 확인할 때 로그인 증표를 대신 넣는다
+@visibleForTesting
+String? Function()? debugAccessToken;
+
 /// 로그인 증표를 붙인 요청 머리말 — AI 서버는 로그인한 사용자만 받는다
 Map<String, String> _headers() {
-  final token = Supabase.instance.client.auth.currentSession?.accessToken;
+  final token = debugAccessToken?.call() ?? Supabase.instance.client.auth.currentSession?.accessToken;
   if (token == null) throw Exception('로그인이 필요합니다.');
   return {'content-type': 'application/json', 'Authorization': 'Bearer $token', 'apikey': kSupabaseAnonKey};
 }
@@ -41,30 +47,17 @@ void stopCurrentGeneration() {
   _activeClients.clear();
 }
 
-const _baseSystem =
-    '결과를 반드시 일반 텍스트로만 작성하세요. ##, **, ***, --, ---, > 같은 마크다운 기호를 절대 사용하지 마세요. 제목은 줄 바꿈으로, 강조는 일반 문장으로 표현하세요. 단락과 항목 사이에는 반드시 빈 줄 하나로 구분하세요. 빈 줄을 두 줄 이상 연속으로 넣지 마세요. 여러 항목을 나열하거나 소제목이 있을 때는 번호를 붙여(1. 2. 3. 형식) 내용이 한눈에 구조적으로 파악되도록 작성하세요. 단, 기도문·선언문·축도문·낭독문·설교 원고처럼 이어서 읽는 글은 문단마다 번호를 붙이지 말고 자연스러운 문단으로 작성하세요. 찬송가를 추천할 때는 반드시 2006년 한국찬송가공회 발행 21세기찬송가(총 645장)를 기준으로 하세요. 번호와 제목을 스스로 교차 확인한 후 제시하되, 확신하지 못할 경우 번호 없이 제목만 제시하고 "번호는 직접 확인하세요"라고 안내하세요.';
-
 /// 스트리밍 생성 — onChunk 에는 지금까지 받은 전체 글이 온다 (웹과 같음). 완성된 글 반환
-Future<String> streamCompletion(String prompt, void Function(String full)? onChunk, {String systemExtra = ''}) async {
+Future<String> streamKind(String kind, Map<String, dynamic> params, void Function(String full)? onChunk) async {
   final client = createStreamingClient();
   final abort = Completer<void>();
   _activeClients.add(client);
   _activeAborts.add(abort);
-  final systemContent = systemExtra.isEmpty ? _baseSystem : '$_baseSystem\n\n$systemExtra';
   var fullText = '';
   try {
     final req = http.Request('POST', _endpoint())
       ..headers.addAll(_headers())
-      ..body = jsonEncode({
-        'model': 'deepseek-flash',
-      'thinking': {'type': 'disabled'},
-        'max_tokens': 8000,
-        'stream': true,
-        'messages': [
-          {'role': 'system', 'content': systemContent},
-          {'role': 'user', 'content': prompt},
-        ],
-      });
+      ..body = jsonEncode({'kind': kind, 'params': params});
     final http.StreamedResponse res;
     try {
       res = await client.send(req);
@@ -121,27 +114,12 @@ Future<String> streamCompletion(String prompt, void Function(String full)? onChu
 
 // 성서정과 AI 조회 (스트리밍 없이 한 번에)
 Future<String> fetchLectionary(String date, String season, String lang, String bible) async {
-  final year = DateTime.tryParse(date)?.year ?? DateTime.now().year;
-  const cycles = ['A', 'B', 'C'];
-  final idx = (year - 2022) % 3;
-  final cycle = idx >= 0 ? cycles[idx] : 'A';
-
-  final prompt = '''개정 공동 성구집(RCL) $cycle년 주기를 기준으로, $date (${season.isEmpty ? '일반 주일' : season})의 성서정과 본문을 알려주세요.
-구약/시편/서신서/복음서 각 1개씩, 성경 장절 형식으로만 간결하게 답하세요. 설명 없이 본문 목록만 작성하세요.
-예시 형식: 사 40:1-11 | 시 85:1-2, 8-13 | 막 1:1-8 | 빌 1:3-11
-번역본: ${bible.isEmpty ? '개역개정성경' : bible}''';
-
   final res = await http.post(
     _endpoint(),
     headers: _headers(),
     body: jsonEncode({
-      'model': 'deepseek-flash',
-      'thinking': {'type': 'disabled'},
-      'max_tokens': 200,
-      'stream': false,
-      'messages': [
-        {'role': 'user', 'content': prompt},
-      ],
+      'kind': 'lectionary',
+      'params': {'date': date, 'season': season, 'bible': bible},
     }),
   );
   if (res.statusCode != 200) throw Exception('API error');

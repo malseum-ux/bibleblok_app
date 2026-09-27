@@ -44,7 +44,10 @@ class FolderGate extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: c.bg,
-      body: Center(
+      body: SafeArea(
+          child: Center(
+              child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Container(
           width: 340,
           padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
@@ -70,7 +73,7 @@ class FolderGate extends ConsumerWidget {
             ],
           ]),
         ),
-      ),
+      ))),
     );
   }
 }

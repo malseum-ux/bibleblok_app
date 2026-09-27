@@ -13,13 +13,14 @@ import '../services/store.dart';
 class AppSettings {
   final String theme; // system | light | dark
   final String lang; // ko | en
-  final String bible;
-  const AppSettings({this.theme = 'system', this.lang = 'ko', this.bible = '개역개정성경'});
+  const AppSettings({this.theme = 'system', this.lang = 'ko'});
 
-  AppSettings copyWith({String? theme, String? lang, String? bible}) =>
-      AppSettings(theme: theme ?? this.theme, lang: lang ?? this.lang, bible: bible ?? this.bible);
+  /// 성경 번역본 — 고르지 않고 언어에 따라 정해진다 (한국어 개역개정, 영어 ESV)
+  String get bible => lang == 'en' ? 'ESV' : '개역개정성경';
 
-  Map<String, String> toJson() => {'theme': theme, 'lang': lang, 'bible': bible};
+  AppSettings copyWith({String? theme, String? lang}) => AppSettings(theme: theme ?? this.theme, lang: lang ?? this.lang);
+
+  Map<String, String> toJson() => {'theme': theme, 'lang': lang};
 }
 
 const _settingsKey = 'bibleblok-settings';
@@ -36,7 +37,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       state = AppSettings(
         theme: (j['theme'] ?? 'system') as String,
         lang: (j['lang'] ?? 'ko') as String,
-        bible: (j['bible'] ?? '개역개정성경') as String,
       );
     } catch (_) {}
   }
@@ -47,9 +47,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     await prefs.setString(_settingsKey, jsonEncode(next.toJson()));
   }
 
-  /// 언어를 바꾸면 성경 번역본도 그 언어 기본값으로 (웹 SettingsPanel 과 같은 동작)
-  Future<void> setLang(String lang) =>
-      update(state.copyWith(lang: lang, bible: lang == 'en' ? 'ESV' : '개역개정성경'));
+  Future<void> setLang(String lang) => update(state.copyWith(lang: lang));
 }
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) => SettingsNotifier());

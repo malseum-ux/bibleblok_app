@@ -10,13 +10,17 @@ import '../providers/auth.dart';
 import '../providers/plan.dart';
 import '../services/file_io.dart';
 import '../services/fs/data_fs.dart';
+import '../services/update_check.dart';
 import '../services/web_import.dart';
 import '../theme/app_colors.dart';
 import 'ui.dart';
 
 class SettingsPanel extends ConsumerStatefulWidget {
   final VoidCallback onClose;
-  const SettingsPanel({super.key, required this.onClose});
+
+  /// 켤 때 확인해 둔 업데이트 결과 (있으면 바로 보여 준다)
+  final UpdateInfo? initialUpdate;
+  const SettingsPanel({super.key, required this.onClose, this.initialUpdate});
 
   @override
   ConsumerState<SettingsPanel> createState() => _SettingsPanelState();
@@ -26,6 +30,36 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
   String? exportStatus;
   String? importStatus; // reading | done:n | error:메시지
   String? webStatus; // reading | done:n | error:메시지
+  String? version; // 지금 앱 버전
+  String? updateStatus; // checking | latest | available | error
+  UpdateInfo? update;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialUpdate?.hasUpdate == true) {
+      update = widget.initialUpdate;
+      updateStatus = 'available';
+    }
+    appVersion().then((v) {
+      if (mounted) setState(() => version = v);
+    }).catchError((_) {});
+  }
+
+  Future<void> handleCheckUpdate() async {
+    setState(() => updateStatus = 'checking');
+    try {
+      final info = await checkForUpdate();
+      if (!mounted) return;
+      setState(() {
+        update = info;
+        version = info.current;
+        updateStatus = info.hasUpdate ? 'available' : 'latest';
+      });
+    } catch (_) {
+      if (mounted) setState(() => updateStatus = 'error');
+    }
+  }
 
   /// 웹 바이블블록(Supabase)에 있는 이 계정의 데이터를 저장 폴더로 옮긴다 — 이미 있는 항목은 건너뛴다
   Future<void> handleWebImport(bool ko) async {
@@ -210,9 +244,6 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
             ]),
             section(ko ? '테마' : 'Theme', [options(themes, settings.theme, (v) => notifier.update(settings.copyWith(theme: v)))]),
             section(ko ? '언어' : 'Language', [options(languages, settings.lang, notifier.setLang)]),
-            section(ko ? '성경 번역본' : 'Bible Version', [
-              options(lang == 'en' ? bibleVersionsEn : bibleVersionsKo, settings.bible, (v) => notifier.update(settings.copyWith(bible: v))),
-            ]),
             section(ko ? '저장 폴더' : 'Data Folder', [
               Text(store.fs.displayName, style: TextStyle(fontSize: 13, color: c.text)),
               const SizedBox(height: 8),
@@ -273,6 +304,35 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
                 )
               else
                 ...memoryCards,
+            ]),
+            section(ko ? '앱 정보' : 'About', [
+              Text('${appName(lang)} ${version ?? ''}', style: TextStyle(fontSize: 13, color: c.text)),
+              const SizedBox(height: 8),
+              OutlineBtn(ko ? '업데이트 확인' : 'Check for Updates', alignLeft: true, onPressed: updateStatus == 'checking' ? null : handleCheckUpdate),
+              if (updateStatus == 'checking')
+                Padding(padding: const EdgeInsets.only(top: 8), child: Text(ko ? '확인 중...' : 'Checking...', style: TextStyle(fontSize: 12, color: c.textMuted))),
+              if (updateStatus == 'latest')
+                Padding(padding: const EdgeInsets.only(top: 8), child: Text(ko ? '최신 버전입니다.' : 'You are up to date.', style: const TextStyle(fontSize: 12, color: AppColors.success))),
+              if (updateStatus == 'error')
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(ko ? '확인하지 못했습니다. 인터넷 연결을 확인해 주세요.' : 'Could not check. Please check your connection.', style: const TextStyle(fontSize: 12, color: AppColors.danger)),
+                ),
+              if (updateStatus == 'available' && update != null) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 8),
+                  child: Text(ko ? '새 버전(${update!.latest})이 있습니다.' : 'Version ${update!.latest} is available.', style: TextStyle(fontSize: 12, color: c.accent)),
+                ),
+                if (isWebPlatform)
+                  AccentButton(ko ? '새로고침해서 업데이트' : 'Reload to Update', onPressed: () => applyUpdate(update!))
+                else if ((update!.url ?? '').isNotEmpty)
+                  AccentButton(
+                    updatesFromStore ? (ko ? '스토어에서 업데이트' : 'Update in Store') : (ko ? '새 버전 받기' : 'Download'),
+                    onPressed: () => applyUpdate(update!),
+                  )
+                else
+                  Text(ko ? '곧 받을 수 있습니다.' : 'It will be available soon.', style: TextStyle(fontSize: 12, color: c.textMuted)),
+              ],
             ]),
           ]),
         ),

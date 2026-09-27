@@ -106,7 +106,8 @@ class _AuthGateState extends ConsumerState<AuthGate> {
 
     return Scaffold(
       backgroundColor: c.bg,
-      body: Center(
+      body: SafeArea(
+          child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Container(
@@ -172,7 +173,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
             ]),
           ),
         ),
-      ),
+      )),
     );
   }
 }

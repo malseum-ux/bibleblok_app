@@ -1,9 +1,6 @@
-// 웹(bibleblok/src/hymns.js)과 같은 내용
 // 대한찬송가공회 2006년 발행 찬송가 전체 목록 (총 645장)
 // 출처: 나무위키 찬송가/목록
-
-// 0번 자리는 비워 둔다 (웹과 같이 번호 = 인덱스)
-const List<String?> _hymns = [
+const HYMNS = [
   null,
   '만복의 근원 하나님', '찬양 성부 성자 성령', '성부 성자와 성령', '성부 성자와 성령', '이 천지간 만물들아',
   '목소리 높여서', '성부 성자 성령', '거룩 거룩 거룩 전능하신 주님', '하늘에 가득 찬 영광의 하나님', '전능왕 오셔서',
@@ -132,32 +129,21 @@ const List<String?> _hymns = [
   '찬양하라 내 영혼아', '거룩한 밤', '주님의 시간에', '우리 모두 찬양해', '거룩 거룩 거룩한 하나님',
   '만민들아 다 경배하라', '할렐루야 할렐루야 다 함께', '아멘 아멘 아멘 영광과 존귀를', '거룩 거룩 거룩', '진리와 생명 되신 주',
   '우리 기도를', '주여 주여 우리를', '나의 하나님 받으소서', '모든 것이 주께로부터', '하늘에 계신(주기도문)',
-  '하늘에 계신(주기도문)', '주님 우리의 마음을 여시어', '주 너를 지키시고', '주 함께 하소서', '아멘',
-  '아멘', '아멘', '아멘', '아멘', '아멘',
-];
+  '하늘에 계신(주기도문)', '주님 우리의 마음을 여시어', '주 너를 지키시고', '주 함께 하소서',
+  '아멘', '아멘', '아멘', '아멘', '아멘', '아멘',
+]
 
-/// "1장 제목" 줄들을 줄바꿈으로 이은 전체 목록
-String getHymnListText() {
-  final buf = StringBuffer();
-  for (var i = 1; i < _hymns.length; i++) {
-    if (i > 1) buf.write('\n');
-    buf.write('$i장 ${_hymns[i]}');
-  }
-  return buf.toString();
+export function getHymnListText() {
+  return HYMNS.slice(1).map((title, i) => `${i + 1}장 ${title}`).join('\n')
 }
 
-/// 번호(앞자리 숫자) 또는 제목 일부로 찬송가 찾기 — 웹 findHymn 과 같은 규칙
-({int number, String title})? findHymn(String query) {
-  final q = query.trim();
-  // JS parseInt 처럼 앞쪽 정수만 읽는다
-  final m = RegExp(r'^[+-]?\d+').firstMatch(q);
-  final byNum = m == null ? null : int.tryParse(m.group(0)!);
-  if (byNum != null && byNum >= 1 && byNum <= 645) {
-    return (number: byNum, title: _hymns[byNum]!);
+export function findHymn(query) {
+  const q = query.trim()
+  const byNum = parseInt(q)
+  if (!isNaN(byNum) && byNum >= 1 && byNum <= 645) {
+    return { number: byNum, title: HYMNS[byNum] }
   }
-  for (var i = 1; i < _hymns.length; i++) {
-    final t = _hymns[i];
-    if (t != null && t.contains(q)) return (number: i, title: t);
-  }
-  return null;
+  const idx = HYMNS.findIndex((t, i) => i > 0 && t && t.includes(q))
+  if (idx > 0) return { number: idx, title: HYMNS[idx] }
+  return null
 }
