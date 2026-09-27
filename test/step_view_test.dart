@@ -57,14 +57,6 @@ void main() {
     expect(find.textContaining('지시 항목 5/5'), findsOneWidget);
   });
 
-  testWidgets('설교문에 반영을 누르면 초안 끝에 붙는다', (tester) async {
-    final (store, item) = await _setup(tester);
-    await tester.tap(find.text('설교문에 반영'));
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pumpAndSettle();
-    expect(item.draft, '<p>첫 문단</p><p>둘째 문단</p>');
-  });
-
   testWidgets('AI 생성 화면: 드래그로 고친 뒤 되돌리기·다시하기가 화면과 파일에 반영된다', (tester) async {
     final (_, item) = await _setup(tester);
     final undo = find.byIcon(Icons.undo).first; // 첫 번째 = AI 생성 화면 (두 번째는 초안 창)
@@ -96,11 +88,11 @@ void main() {
 
   testWidgets('초안창: 되돌리기·다시하기가 즉시 파일에 저장된다', (tester) async {
     final (_, item) = await _setup(tester);
-    await tester.tap(find.text('설교문에 반영'));
+    final state = tester.state(find.byType(StepView)) as dynamic;
+    state.handleDraftChange('<p>첫 문단</p><p>둘째 문단</p>');
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
     expect(item.draft, '<p>첫 문단</p><p>둘째 문단</p>');
-    final state = tester.state(find.byType(StepView)) as dynamic;
     state.draftHistory.forceSnapshot();
 
     await tester.tap(find.byIcon(Icons.undo).last); // 마지막 = 초안창
@@ -110,5 +102,10 @@ void main() {
     await tester.tap(find.byIcon(Icons.redo).last);
     await tester.pumpAndSettle();
     expect(item.draft, '<p>첫 문단</p><p>둘째 문단</p>');
+  });
+
+  testWidgets('생성창 하단에 설교문에 반영 버튼이 없다', (tester) async {
+    await _setup(tester);
+    expect(find.text('설교문에 반영'), findsNothing);
   });
 }

@@ -63,9 +63,6 @@ class RichView extends StatefulWidget {
   /// 편집할 때마다 HTML 로 알려 준다
   final ValueChanged<String>? onChanged;
 
-  /// 선택한 글이 바뀔 때 (보기 상태에서 "설교문에 반영" 에 쓰인다)
-  final ValueChanged<String>? onSelectedText;
-
   /// AI 가 쓰는 중에는 서식 없이 가볍게 보여 준다
   final bool streaming;
   final EdgeInsets padding;
@@ -86,7 +83,6 @@ class RichView extends StatefulWidget {
     this.editable = false,
     this.autoFocus = false,
     this.onChanged,
-    this.onSelectedText,
     this.streaming = false,
     this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
     this.showToolbar = false,
@@ -127,11 +123,6 @@ class RichViewState extends State<RichView> {
   }
 
   void _onControllerChange() {
-    final sel = controller.selection;
-    if (widget.onSelectedText != null) {
-      final text = sel.isCollapsed ? '' : controller.document.getPlainText(sel.start, sel.end - sel.start).trim();
-      widget.onSelectedText!(text);
-    }
     if (widget.showToolbar && mounted) setState(() {}); // 도구 막대의 눌림 표시
   }
 

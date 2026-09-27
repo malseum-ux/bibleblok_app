@@ -34,10 +34,6 @@ Document docFromSource(String? source) {
 /// Quill 문서 → 저장할 HTML
 String htmlFromDoc(Document doc) => deltaToHtml(doc.toDelta());
 
-/// 일반 글 줄들을 문단 HTML 로 (웹 applyToSermon 과 같은 방식)
-String linesToHtml(String text) =>
-    text.split('\n').where((l) => l.trim().isNotEmpty).map((l) => '<p>${escapeHtml(l)}</p>').join();
-
 String escapeHtml(String s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
 // ── HTML → Delta ─────────────────────────────────────────────────────────────

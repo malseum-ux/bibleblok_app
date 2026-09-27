@@ -75,7 +75,6 @@ class _StepViewState extends ConsumerState<StepView> {
   double leftPct = 50;
   bool stepPanelVisible = true;
   String mobilePanel = 'result';
-  String lastSelection = '';
   Timer? draftTimer;
   Timer? resultEditTimer;
 
@@ -268,17 +267,6 @@ class _StepViewState extends ConsumerState<StepView> {
     draftTimer?.cancel();
     item.draft = draftHistory.text;
     await store.saveItem(item);
-  }
-
-  /// 선택한 글(없으면 전체)을 설교문 초안 끝에 붙인다
-  void applyToSermon() {
-    if (content.isEmpty) return;
-    final textToAdd = lastSelection.isNotEmpty ? lastSelection : content;
-    lastSelection = '';
-    final existing = draftHistory.text;
-    final addHtml = isHtml(textToAdd) ? textToAdd : linesToHtml(textToAdd);
-    final separator = stripHtml(existing).trim().isNotEmpty ? '<p><br></p>' : '';
-    handleDraftChange(existing + separator + addHtml);
   }
 
   Future<void> refineSermonDraft() async {
@@ -660,22 +648,6 @@ class _StepViewState extends ConsumerState<StepView> {
             lang: lang,
           ),
         Expanded(child: _resultBody(c)),
-        if (tab == 'sermon' && content.isNotEmpty && !loading)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
-            child: TextButton(
-              onPressed: applyToSermon,
-              style: TextButton.styleFrom(
-                backgroundColor: c.accentLight,
-                foregroundColor: c.accent,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: c.accent)),
-                textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              child: Text(ko ? '설교문에 반영' : 'Add to Sermon'),
-            ),
-          ),
       ]),
     );
   }
@@ -715,7 +687,6 @@ class _StepViewState extends ConsumerState<StepView> {
                   source: content,
                   fontSize: widget.fontSize,
                   streaming: loading,
-                  onSelectedText: (t) => lastSelection = t,
                   selectionEdit: loading || refining ? null : selectionEdit(applyResultEdit),
                 ),
               )
