@@ -2,6 +2,24 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- iCloud Drive 에 "성경과설교" 폴더로 보이게 (파일 앱·Mac Finder) -->
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.com.blokzip.bibleblok</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>성경과설교</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>Any</string>
+		</dict>
+	</dict>
+	<!-- iCloud 를 쓰지 않을 때 저장하는 기기 안 폴더를 파일 앱(나의 iPhone)에 보이게 -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<!-- 로그인 뒤 돌아오는 주소 (com.blokzip.bibleblok://login-callback) — Supabase Redirect URLs 에도 등록 -->
 	<key>CFBundleURLTypes</key>
 	<array>

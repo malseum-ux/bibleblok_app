@@ -7,6 +7,11 @@
 	<!-- 인터넷 사용 (로그인·AI 생성) — Mac 앱은 기본으로 막혀 있다 -->
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<!-- 사용자가 고른 저장 폴더 읽기·쓰기 + 그 허락을 북마크로 보관 (MainFlutterWindow.swift) -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
 	<key>com.apple.security.network.server</key>

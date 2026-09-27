@@ -3,3 +3,4 @@ import 'data_fs.dart';
 
 DataFs? createNativeFs(String root) => null;
 Future<String?> pickNativeRoot() async => null;
+Future<String?> autoNativeRoot() async => null;

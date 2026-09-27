@@ -5,6 +5,8 @@
 //   네이티브  '/full/path'   → dart:io 폴더 (Mac·Windows·Android)
 // 앱의 다른 코드는 DataFs 만 쓰면 플랫폼을 신경 쓰지 않아도 된다.
 // 경로는 항상 저장 폴더 기준 상대 경로, 구분자는 '/'.
+import 'package:flutter/foundation.dart';
+
 import 'fs_native_stub.dart' if (dart.library.io) 'fs_native.dart' as native;
 import 'fs_web_stub.dart' if (dart.library.js_interop) 'fs_web.dart' as web;
 
@@ -49,6 +51,14 @@ Future<String?> pickDataRoot() async {
   if (w != null) return '$webRootPrefix$w';
   return native.pickNativeRoot();
 }
+
+/// 폴더를 고르지 않고 정해진 폴더를 쓰는 기기인지
+/// Android: 앱 전용 폴더 / iPhone·iPad: iCloud Drive 의 성경과설교 폴더 (iCloud 를 안 쓰면 기기 안 폴더)
+bool get usesAutoFolder =>
+    !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+
+/// 정해진 저장 폴더 (없으면 만든다)
+Future<String?> autoDataRoot() => native.autoNativeRoot();
 
 /// 웹: 새로고침 뒤 이전에 고른 폴더를 다시 연결 (권한이 살아 있으면 폴더 이름)
 Future<String?> restoreWebRoot() => web.restoreWebRoot();

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/fs/data_fs.dart';
+import '../services/fs/mac_bookmark.dart';
 import '../services/store.dart';
 
 // ── 앱 설정 (기기별) — 웹 settings.js 와 같은 키·기본값 ─────────────────────────
@@ -23,6 +24,7 @@ class AppSettings {
 
 const _settingsKey = 'bibleblok-settings';
 const _rootKey = 'bibleblok-data-root';
+const _bookmarkKey = 'bibleblok-data-bookmark'; // Mac 앱: 저장 폴더 허락 (fs/mac_bookmark.dart)
 
 class SettingsNotifier extends StateNotifier<AppSettings> {
   SettingsNotifier() : super(const AppSettings());
@@ -76,6 +78,30 @@ class FolderState extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    // Android: 폴더를 고르지 않고 앱 전용 폴더에 바로 저장
+    if (usesAutoFolder) {
+      final auto = await autoDataRoot();
+      if (auto != null) return _open(auto);
+      error = '저장 폴더를 만들지 못했습니다.';
+      status = FolderStatus.needFolder;
+      notifyListeners();
+      return;
+    }
+    // Mac 앱: 북마크로 폴더를 다시 열어야 들어갈 수 있다
+    if (needsFolderBookmark) {
+      final bookmark = prefs.getString(_bookmarkKey);
+      if (bookmark != null) {
+        final resolved = await resolveFolderBookmark(bookmark);
+        if (resolved != null) {
+          if (resolved.renewed != null) await prefs.setString(_bookmarkKey, resolved.renewed!);
+          return _open(resolved.path);
+        }
+        error = '저장 폴더에 다시 들어갈 수 없습니다. 폴더를 다시 선택해 주세요.';
+      }
+      status = FolderStatus.needFolder;
+      notifyListeners();
+      return;
+    }
     if (root != null && root.isNotEmpty && !isWebRoot(root)) return _open(root);
     status = FolderStatus.needFolder;
     notifyListeners();
@@ -102,7 +128,14 @@ class FolderState extends ChangeNotifier {
     error = null;
     try {
       final root = await pickDataRoot();
-      if (root != null) await _open(root);
+      if (root == null) return;
+      // Mac 앱: 다음에 켤 때도 이 폴더에 들어갈 수 있도록 허락을 북마크로 보관
+      if (needsFolderBookmark) {
+        final bookmark = await createFolderBookmark(root);
+        if (bookmark == null) throw Exception('폴더 허락을 보관하지 못했습니다');
+        (await SharedPreferences.getInstance()).setString(_bookmarkKey, bookmark);
+      }
+      await _open(root);
     } catch (e) {
       error = '$e';
       if (isWebPlatform && '$e'.contains('unsupported')) status = FolderStatus.unsupported;

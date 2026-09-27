@@ -9,6 +9,7 @@ import '../providers/app_state.dart';
 import '../providers/auth.dart';
 import '../providers/plan.dart';
 import '../services/file_io.dart';
+import '../services/fs/data_fs.dart';
 import '../services/web_import.dart';
 import '../theme/app_colors.dart';
 import 'ui.dart';
@@ -215,7 +216,18 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
             section(ko ? '저장 폴더' : 'Data Folder', [
               Text(store.fs.displayName, style: TextStyle(fontSize: 13, color: c.text)),
               const SizedBox(height: 8),
-              OutlineBtn(ko ? '다른 폴더로 변경' : 'Change Folder', alignLeft: true, onPressed: () => ref.read(folderProvider).pickFolder()),
+              if (usesAutoFolder)
+                // iPhone·iPad 는 iCloud Drive 폴더, Android 는 앱 전용 폴더를 쓴다
+                Text(
+                  store.fs.displayName.startsWith('iCloud')
+                      ? (ko ? '같은 iCloud 를 쓰는 iPhone·iPad·Mac 에서 함께 볼 수 있습니다.\nMac 에서는 iCloud Drive 의 성경과설교 폴더를 고르세요.' : 'Shared with your iPhone, iPad and Mac on the same iCloud.\nOn Mac, choose the 성경과설교 folder in iCloud Drive.')
+                      : store.fs.displayName.startsWith('이 기기')
+                          ? (ko ? 'iCloud 에 로그인하면 iCloud Drive 에 저장되어 다른 기기에서도 볼 수 있습니다.' : 'Sign in to iCloud to save in iCloud Drive and share with other devices.')
+                          : (ko ? '이 기기의 앱 전용 폴더에 저장됩니다.\n다른 기기로 옮길 때는 위의 백업 내보내기·불러오기를 쓰세요.' : 'Saved in this app\'s own folder on this device.\nUse Export/Import Backup above to move to another device.'),
+                  style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.5),
+                )
+              else
+                OutlineBtn(ko ? '다른 폴더로 변경' : 'Change Folder', alignLeft: true, onPressed: () => ref.read(folderProvider).pickFolder()),
             ]),
             section(ko ? '계정' : 'Account', [
               if (ref.watch(authUserProvider).valueOrNull case final user?)
