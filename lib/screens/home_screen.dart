@@ -428,6 +428,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         file: wb.file,
         lang: lang,
         fontSize: fontSizes['sermon']!,
+        bible: settings.bible,
         // 구절이 바뀌었을 수 있으니 목록과 보기 화면의 항목을 바꿔 둔다
         onSaved: (updated) => setState(() {
           wordblokGroups = [

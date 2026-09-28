@@ -1,21 +1,43 @@
 // 성경나침반 내설교 한 편 보기·수정 — 설교문 초안 칸과 같은 모양
 // 수정: 워드블록 편집과 같이 구절 입력 + 본문, [저장][취소]. 저장하면 원래 .scb 에 바로 저장된다.
+// 본문은 설교문 초안과 같은 편집기 — //지시 · //-지시 · //+지시 + Enter 로 AI 가 그 자리에 쓴다.
+// .scb 는 서식 없는 글이라 저장할 때 글자만 남긴다.
 // 웹 WordblokSermonView.jsx 와 같은 구성
 import 'package:flutter/material.dart';
 
+import '../services/prompts.dart';
 import '../services/wordblok_sermons.dart';
 import '../theme/app_colors.dart';
+import '../widgets/rich_view.dart';
 import '../widgets/ui.dart';
+
+/// 편집기 HTML → 글자 (문단은 줄바꿈) — 웹 htmlToText 와 같은 규칙
+String _htmlToText(String html) {
+  if (!html.trimLeft().startsWith('<')) return html;
+  return html
+      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<[^>]+>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&amp;', '&')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+}
 
 class WordblokSermonView extends StatefulWidget {
   final WordblokItem item;
   final String file;
   final String lang;
   final double fontSize;
+  final String bible;
 
   /// 저장한 뒤 — 구절이 바뀐 항목
   final ValueChanged<WordblokItem>? onSaved;
-  const WordblokSermonView({super.key, required this.item, required this.file, this.lang = 'ko', this.fontSize = 14, this.onSaved});
+  const WordblokSermonView({super.key, required this.item, required this.file, this.lang = 'ko', this.fontSize = 14, required this.bible, this.onSaved});
 
   @override
   State<WordblokSermonView> createState() => _WordblokSermonViewState();
@@ -25,8 +47,9 @@ class _WordblokSermonViewState extends State<WordblokSermonView> {
   String? text; // null = 불러오는 중
   bool editing = false;
   bool saving = false;
+  bool refining = false; // // 명령으로 AI 가 쓰는 중
   final refCtrl = TextEditingController();
-  final textCtrl = TextEditingController();
+  String editText = ''; // 편집기 값 (글자 또는 HTML)
 
   @override
   void initState() {
@@ -41,28 +64,44 @@ class _WordblokSermonViewState extends State<WordblokSermonView> {
   @override
   void dispose() {
     refCtrl.dispose();
-    textCtrl.dispose();
     super.dispose();
   }
 
   void openEdit() {
     final item = widget.item;
     refCtrl.text = passageLabel(item.book, item.chapter, item.verse);
-    textCtrl.text = text ?? '';
+    editText = text ?? '';
     setState(() => editing = true);
   }
 
+  /// 설교문 초안과 같은 // 명령 (연구 단계가 없으므로 //-·//+ 도 문맥만 함께 보낸다)
+  Future<void> handleSlashCommand(SlashCommand cmd) async {
+    setState(() => refining = true);
+    final useTheological = cmd.mode != 'research';
+    final useContext = cmd.mode != 'fresh';
+    final item = widget.item;
+    final ref = refCtrl.text.trim();
+    try {
+      await executeInlineCommand(cmd.instruction, useContext ? cmd.contextBefore : '', useContext ? cmd.contextAfter : '', widget.lang,
+          widget.bible, ref.isNotEmpty ? ref : passageLabel(item.book, item.chapter, item.verse), item.title, cmd.write, null, useTheological);
+    } catch (_) {
+      cmd.write('');
+    } finally {
+      if (mounted) setState(() => refining = false);
+    }
+  }
+
   Future<void> handleSave() async {
-    if (saving) return;
+    if (saving || refining) return;
     setState(() => saving = true);
     final ko = widget.lang == 'ko';
     try {
       final item = widget.item;
-      final editText = textCtrl.text;
-      final ref = await saveWordblokSermon(item.path, item.id, refCtrl.text.trim(), editText);
+      final plain = _htmlToText(editText);
+      final ref = await saveWordblokSermon(item.path, item.id, refCtrl.text.trim(), plain);
       if (!mounted) return;
       setState(() {
-        text = editText.trim();
+        text = plain.trim();
         editing = false;
       });
       widget.onSaved?.call(item.withRef(ref.book, ref.chapter, ref.verse));
@@ -134,53 +173,67 @@ class _WordblokSermonViewState extends State<WordblokSermonView> {
         ]),
       ),
       Expanded(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(28, 24, 28, 48),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(item.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.textHeading)),
-            const SizedBox(height: 6),
-            if (meta.isNotEmpty) ...[
-              Text(meta, style: TextStyle(fontSize: 12, color: c.textMuted)),
-              const SizedBox(height: 20),
-            ],
-            if (editing) ...[
-              Row(children: [
-                Expanded(
-                  child: TextField(
-                    controller: refCtrl,
-                    style: TextStyle(fontSize: 14, color: c.text),
-                    decoration: deco(hint: ko ? '예) 요 3:16' : 'e.g. John 3:16', padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+        child: LayoutBuilder(builder: (context, box) {
+          // 편집기는 높이가 정해져야 해서 — 화면에 맞게, 최소 360 (웹 minHeight 360)
+          final editorHeight = (box.maxHeight - 250).clamp(360.0, double.infinity);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(28, 24, 28, 48),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text(item.title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.textHeading)),
+              const SizedBox(height: 6),
+              if (meta.isNotEmpty) ...[
+                Text(meta, style: TextStyle(fontSize: 12, color: c.textMuted)),
+                const SizedBox(height: 20),
+              ],
+              if (editing) ...[
+                Row(children: [
+                  Expanded(
+                    child: TextField(
+                      controller: refCtrl,
+                      style: TextStyle(fontSize: 14, color: c.text),
+                      decoration: deco(hint: ko ? '예) 요 3:16' : 'e.g. John 3:16', padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(ko ? '맵핑' : 'Passage', style: TextStyle(fontSize: 10, color: c.textMuted)),
+                ]),
+                const SizedBox(height: 8),
+                // 설교문 초안과 같은 편집기 (도구 막대 + // 명령)
+                Opacity(
+                  opacity: refining ? 0.7 : 1,
+                  child: Container(
+                    height: editorHeight,
+                    decoration: BoxDecoration(border: Border.all(color: c.border), borderRadius: BorderRadius.circular(4)),
+                    clipBehavior: Clip.antiAlias,
+                    child: RichView(
+                      source: editText,
+                      fontSize: widget.fontSize,
+                      editable: !refining && !saving,
+                      showToolbar: true,
+                      onChanged: (html) => editText = html, // 화면을 다시 그리지 않고 값만 기억 (다음 그리기 때 source 로 쓰인다)
+                      onEnterCommand: handleSlashCommand,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(ko ? '맵핑' : 'Passage', style: TextStyle(fontSize: 10, color: c.textMuted)),
-              ]),
-              const SizedBox(height: 8),
-              TextField(
-                controller: textCtrl,
-                minLines: 20,
-                maxLines: 20,
-                style: TextStyle(fontSize: widget.fontSize, height: 1.8, color: c.text),
-                decoration: deco(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
-              ),
-              const SizedBox(height: 8),
-              Row(children: [
-                Opacity(
-                  opacity: saving ? 0.5 : 1,
-                  child: _btn(saving ? (ko ? '저장 중...' : 'Saving...') : (ko ? '저장' : 'Save'), saving ? null : handleSave, primary: true),
+                const SizedBox(height: 8),
+                Row(children: [
+                  Opacity(
+                    opacity: saving || refining ? 0.5 : 1,
+                    child: _btn(saving ? (ko ? '저장 중...' : 'Saving...') : (ko ? '저장' : 'Save'), saving || refining ? null : handleSave, primary: true),
+                  ),
+                  const SizedBox(width: 8),
+                  _btn(ko ? '취소' : 'Cancel', () => setState(() => editing = false)),
+                ]),
+              ] else if (text == null)
+                Text(ko ? '불러오는 중...' : 'Loading...', style: TextStyle(fontSize: 13, color: c.textMuted))
+              else
+                SelectableText(
+                  text!.isNotEmpty ? text! : (ko ? '내용이 없습니다' : 'No content'),
+                  style: TextStyle(fontSize: widget.fontSize, height: 1.8, color: c.text),
                 ),
-                const SizedBox(width: 8),
-                _btn(ko ? '취소' : 'Cancel', () => setState(() => editing = false)),
-              ]),
-            ] else if (text == null)
-              Text(ko ? '불러오는 중...' : 'Loading...', style: TextStyle(fontSize: 13, color: c.textMuted))
-            else
-              SelectableText(
-                text!.isNotEmpty ? text! : (ko ? '내용이 없습니다' : 'No content'),
-                style: TextStyle(fontSize: widget.fontSize, height: 1.8, color: c.text),
-              ),
-          ]),
-        ),
+            ]),
+          );
+        }),
       ),
     ]);
   }
