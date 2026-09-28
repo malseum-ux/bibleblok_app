@@ -8,6 +8,7 @@ import '../models/item.dart';
 import '../providers/app_state.dart';
 import '../services/store.dart';
 import '../services/update_check.dart';
+import '../services/wordblok_sermons.dart';
 import '../theme/app_colors.dart';
 import '../widgets/forms.dart';
 import '../widgets/settings_panel.dart';
@@ -15,6 +16,7 @@ import '../widgets/sidebar.dart';
 import '../widgets/ui.dart';
 import 'cell_view.dart';
 import 'step_view.dart';
+import 'wordblok_sermon_view.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -39,7 +41,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     checkForUpdate().then((info) {
       if (mounted && info.hasUpdate) setState(() => update = info);
     }).catchError((_) {});
+    loadWordblok();
   }
+
+  // ── 성경나침반 내설교 (설교작성 사이드 목록, 읽기 전용) ──────────────────────
+  List<WordblokGroup> wordblokGroups = [];
+  ({WordblokItem item, String file})? wordblokSelected;
+
+  Future<void> loadWordblok() async {
+    List<WordblokGroup> groups;
+    try {
+      final name = await restoreWordblokFolder();
+      groups = name != null ? await loadWordblokSermons() : [];
+    } catch (_) {
+      groups = [];
+    }
+    if (mounted) setState(() => wordblokGroups = groups);
+  }
+
+  void selectWordblok(WordblokItem item) => setState(() {
+        // 같은 설교를 다시 누르면 닫는다 (새 설교 만들기 화면으로)
+        if (wordblokSelected?.item.key == item.key) {
+          wordblokSelected = null;
+          return;
+        }
+        final group = wordblokGroups.where((g) => g.path == item.path).firstOrNull;
+        selectedId = null;
+        wordblokSelected = (item: item, file: group?.file ?? '');
+      });
   bool? sidebarVisible; // null = 화면 폭으로 결정 (넓으면 보임)
   double sidebarWidth = 240;
   bool searchOpen = false;
@@ -56,6 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void switchTab(String t) => setState(() {
         tab = t;
         selectedId = null;
+        wordblokSelected = null;
         selectedFolder = null;
         closeSearch();
       });
@@ -115,7 +145,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     creating = true;
     try {
       final item = await store.createItem(tab, data, selectedFolder ?? '');
-      setState(() => selectedId = item.id);
+      setState(() {
+        selectedId = item.id;
+        wordblokSelected = null;
+      });
     } catch (e) {
       if (mounted) showAlert(context, '${lang == 'ko' ? '저장 실패: ' : 'Save failed: '}$e');
     } finally {
@@ -179,6 +212,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onSelect: (item) => setState(() {
         // 다른 탭의 검색 결과를 누르면 그 탭으로 옮겨 연다
         if (item.tab != tab) tab = item.tab;
+        wordblokSelected = null; // 내 원고를 고르면 성경나침반 설교 보기는 닫는다
         selectedId = item.id;
         if (isMobile) sidebarVisible = false;
       }),
@@ -193,6 +227,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onFolderSelect: (path) => setState(() {
         selectedFolder = path;
         selectedId = null;
+        wordblokSelected = null;
       }),
       onRenameFolder: (path, name) => _guard(() async {
         await s.renameFolder(tab, path, name);
@@ -202,6 +237,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       searchItems: searchResults,
       searchItemsTab: searchMode == 'worship' ? 'worship' : 'sermon',
       lang: lang,
+      wordblokGroups: wordblokGroups,
+      selectedWordblokKey: wordblokSelected?.item.key,
+      onWordblokSelect: (item) {
+        selectWordblok(item);
+        if (isMobile) setState(() => sidebarVisible = false);
+      },
     );
 
     return Scaffold(
@@ -231,7 +272,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Positioned.fill(
             child: GestureDetector(onTap: () => setState(() => settingsOpen = false), child: Container(color: Colors.black.withValues(alpha: 0.25))),
           ),
-          Positioned(top: 0, right: 0, bottom: 0, child: SettingsPanel(onClose: () => setState(() => settingsOpen = false), initialUpdate: update)),
+          Positioned(
+            top: 0,
+            right: 0,
+            bottom: 0,
+            child: SettingsPanel(
+              onClose: () => setState(() => settingsOpen = false),
+              initialUpdate: update,
+              onWordblokChanged: () {
+                setState(() => wordblokSelected = null);
+                loadWordblok();
+              },
+            ),
+          ),
         ],
       ])),
     );
@@ -366,6 +419,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _main(BuildContext context, String lang, bool isMobile, Item? selectedItem, AppSettings settings) {
     final c = context.c;
+    // 성경나침반 내설교 한 편 (읽기 전용) — 새 항목 양식 대신
+    final wb = wordblokSelected;
+    if (wb != null && tab == 'sermon') {
+      return WordblokSermonView(
+        key: ValueKey(wb.item.key),
+        item: wb.item,
+        file: wb.file,
+        lang: lang,
+        fontSize: fontSizes['sermon']!,
+      );
+    }
     if (selectedItem == null) {
       if (tab == 'cell') {
         return SingleChildScrollView(
@@ -420,6 +484,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onGoToSermon: (sermon) => setState(() {
           tab = sermon.tab;
           selectedId = sermon.id;
+          wordblokSelected = null;
           selectedFolder = null;
           closeSearch();
         }),
@@ -436,6 +501,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onGoToCell: (cell) => setState(() {
         tab = 'cell';
         selectedId = cell.id;
+        wordblokSelected = null;
         selectedFolder = null;
         closeSearch();
       }),

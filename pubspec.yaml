@@ -48,6 +48,9 @@ dependencies:
   path_provider: ^2.1.6
   package_info_plus: ^10.2.1
   url_launcher: ^6.3.2
+  # 성경나침반 내설교(.scb = SQLite) 읽기 — 웹은 sql.js(web/sql-wasm.js)
+  sqflite: ^2.4.1
+  sqflite_common_ffi: ^2.3.4
 
 dev_dependencies:
   flutter_test:

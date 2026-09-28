@@ -165,7 +165,109 @@
         return true;
       } catch (e) { console.error('[bb] delete error', path, e); return false; }
     }
+
+    // ── 성경나침반 내설교 폴더 (읽기 전용) ─────────────────────────────────
+    // 저장 폴더와 같은 IndexedDB(bb-folders)에 다른 키로 보관한다. 읽기 권한만 쓴다.
+    // 웹 앱(bibleblok/src/wordblokSermons.js)과 같은 규칙. 플러터 쪽: lib/services/wordblok/wb_web.dart
+
+    let _bbWbHandle = null;   // 연결된 내설교 폴더
+    let _bbWbStored = null;   // 권한이 풀려 다시 허용을 기다리는 핸들
+    const _BB_WB_KEY = 'wordblok-sermon';
+
+    async function _bbWbSaveIDB(handle) {
+      try {
+        const db = await _bbOpenIDB();
+        const tx = db.transaction(_BB_STORE, 'readwrite');
+        tx.objectStore(_BB_STORE).put(handle, _BB_WB_KEY);
+        await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+        db.close();
+      } catch (e) { console.warn('[bb] IDB save failed', e); }
+    }
+    async function _bbWbLoadIDB() {
+      try {
+        const db = await _bbOpenIDB();
+        const tx = db.transaction(_BB_STORE, 'readonly');
+        const result = await new Promise((res, rej) => {
+          const r = tx.objectStore(_BB_STORE).get(_BB_WB_KEY);
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+        db.close();
+        return result ?? null;
+      } catch (e) { return null; }
+    }
+
+    function bbWbName() { return _bbWbHandle ? _bbWbHandle.name : ''; }
+
+    // 권한이 풀려 다시 허용을 기다리는 중인지
+    function bbWbPending() { return !_bbWbHandle && !!_bbWbStored; }
+
+    // 폴더 선택 — 폴더 이름 반환 (취소하면 null)
+    async function bbWbPick() {
+      if (!window.showDirectoryPicker) throw new Error('unsupported');
+      let h;
+      try { h = await showDirectoryPicker({ mode: 'read' }); }
+      catch (e) { if (e && e.name === 'AbortError') return null; throw e; }
+      _bbWbHandle = h;
+      _bbWbStored = null;
+      await _bbWbSaveIDB(h);
+      return h.name;
+    }
+
+    // 새로고침 뒤 복원 — 권한이 살아 있으면 폴더 이름, 아니면 null
+    async function bbWbRestore() {
+      if (_bbWbHandle) return _bbWbHandle.name;
+      const h = await _bbWbLoadIDB();
+      if (!h) return null;
+      _bbWbStored = h;
+      let perm = 'prompt';
+      try { perm = await h.queryPermission({ mode: 'read' }); } catch (_) {}
+      if (perm === 'granted') { _bbWbHandle = h; _bbWbStored = null; return h.name; }
+      return null;
+    }
+
+    // 권한 다시 요청 — 사용자 클릭 안에서 호출해야 한다
+    async function bbWbRequestPermission() {
+      const h = _bbWbStored || await _bbWbLoadIDB();
+      if (!h) return null;
+      try {
+        if (await h.requestPermission({ mode: 'read' }) === 'granted') {
+          _bbWbHandle = h; _bbWbStored = null; return h.name;
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    // 하위 폴더까지 .scb 파일 경로 목록 (숨김 항목 제외, 경로 순)
+    async function bbWbListScb() {
+      if (!_bbWbHandle) return [];
+      const out = [];
+      async function scan(dir, prefix) {
+        for await (const entry of dir.values()) {
+          if (entry.name.startsWith('.')) continue;
+          const path = prefix ? prefix + '/' + entry.name : entry.name;
+          if (entry.kind === 'directory') await scan(entry, path);
+          else if (entry.name.toLowerCase().endsWith('.scb')) out.push(path);
+        }
+      }
+      try { await scan(_bbWbHandle, ''); } catch (e) { console.error('[bb] scb scan error', e); }
+      return out.sort((a, b) => a.localeCompare(b, 'ko'));
+    }
+
+    // 파일 바이트 (Uint8Array) — 없으면 null
+    async function bbWbReadBytes(path) {
+      if (!_bbWbHandle) return null;
+      try {
+        const parts = _bbParts(path);
+        let dir = _bbWbHandle;
+        for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+        const fh = await dir.getFileHandle(parts[parts.length - 1]);
+        return new Uint8Array(await (await fh.getFile()).arrayBuffer());
+      } catch (e) { console.warn('[bb] scb read failed', path, e); return null; }
+    }
   </script>
+  <!-- SQLite (sql.js) — 성경나침반 내설교(.scb) 읽기용 -->
+  <script src="sql-wasm.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

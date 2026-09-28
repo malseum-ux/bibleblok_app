@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../models/item.dart';
 import '../services/store.dart' show parentOf, baseName;
+import '../services/wordblok_sermons.dart';
 import '../theme/app_colors.dart';
 
 class _DragData {
@@ -38,6 +39,11 @@ class Sidebar extends StatefulWidget {
   final String? searchItemsTab;
   final String lang;
 
+  /// 성경나침반 내설교 (설교작성 탭에서만, 읽기 전용)
+  final List<WordblokGroup> wordblokGroups;
+  final String? selectedWordblokKey;
+  final ValueChanged<WordblokItem>? onWordblokSelect;
+
   const Sidebar({
     super.key,
     required this.tab,
@@ -57,6 +63,9 @@ class Sidebar extends StatefulWidget {
     this.searchItems,
     this.searchItemsTab,
     required this.lang,
+    this.wordblokGroups = const [],
+    this.selectedWordblokKey,
+    this.onWordblokSelect,
   });
 
   @override
@@ -250,6 +259,7 @@ class _SidebarState extends State<Sidebar> {
                       ),
                     if (rootItems.isEmpty && widget.folders.isEmpty) _emptyText(_emptyHint()),
                     for (final item in sortItems(rootItems)) _fileRow(item, 0, dawnNumbers),
+                    if (widget.tab == 'sermon' && widget.wordblokGroups.isNotEmpty) _wordblokSection(),
                     if (dragging)
                       Container(
                         height: 40,
@@ -424,6 +434,86 @@ class _SidebarState extends State<Sidebar> {
           ),
           child: Text(label, style: TextStyle(fontSize: 11, color: muted ? c.textMuted : c.text)),
         ),
+      ),
+    );
+  }
+
+  // ── 성경나침반 내설교: .scb 파일마다 접히는 폴더, 누르면 오른쪽에 읽기 전용으로 보인다 ──
+
+  /// 내 원고와 같은 이름 규칙 — '날짜6자리 제목'
+  String _wordblokLabel(WordblokItem item) {
+    final d = item.date.replaceAll('-', '');
+    final date = d.length >= 2 ? d.substring(2) : '';
+    return date.isNotEmpty ? '$date ${item.title}' : item.title;
+  }
+
+  /// 내 원고와 같은 정렬 방식
+  List<WordblokItem> _sortWordblok(List<WordblokItem> list) {
+    final out = [...list];
+    out.sort((a, b) {
+      if (sortMode == 'date-desc') return b.date.compareTo(a.date) > 0 ? 1 : -1;
+      if (sortMode == 'date-asc') return a.date.compareTo(b.date) > 0 ? 1 : -1;
+      return _wordblokLabel(a).compareTo(_wordblokLabel(b));
+    });
+    return out;
+  }
+
+  Widget _wordblokSection() {
+    final c = context.c;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: 4),
+      decoration: BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 2),
+          child: Text(en ? 'WordBlok Sermons' : '성경나침반 내설교', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.textMuted)),
+        ),
+        for (final g in widget.wordblokGroups) ...[
+          InkWell(
+            onTap: () => setState(() {
+              final openKey = 'wordblok-${g.path}';
+              expanded.contains(openKey) ? expanded.remove(openKey) : expanded.add(openKey);
+            }),
+            child: Container(
+              padding: const EdgeInsets.only(left: 10, right: 8, top: 4, bottom: 4),
+              decoration: const BoxDecoration(border: Border(left: BorderSide(color: Colors.transparent, width: 2))),
+              child: Row(children: [
+                AnimatedRotation(
+                  turns: expanded.contains('wordblok-${g.path}') ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 150),
+                  child: Opacity(opacity: 0.7, child: Icon(Icons.play_arrow, size: 10, color: c.textMuted)), // 웹의 ▶
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(g.file,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: c.textHeading)),
+                ),
+                const SizedBox(width: 4),
+                Text('${g.items.length}', style: TextStyle(fontSize: 11, color: c.textMuted)),
+              ]),
+            ),
+          ),
+          if (expanded.contains('wordblok-${g.path}'))
+            for (final item in _sortWordblok(g.items)) _wordblokRow(item),
+        ],
+      ]),
+    );
+  }
+
+  Widget _wordblokRow(WordblokItem item) {
+    final c = context.c;
+    final selected = widget.selectedWordblokKey == item.key;
+    return InkWell(
+      onTap: () => widget.onWordblokSelect?.call(item),
+      child: Container(
+        padding: const EdgeInsets.only(left: 24, right: 8, top: 4, bottom: 4),
+        decoration: BoxDecoration(
+          color: selected ? c.accentLight : Colors.transparent,
+          border: Border(left: BorderSide(color: selected ? c.accent : Colors.transparent, width: 2)),
+        ),
+        child: Text(_wordblokLabel(item),
+            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: selected ? c.accent : c.text)),
       ),
     );
   }

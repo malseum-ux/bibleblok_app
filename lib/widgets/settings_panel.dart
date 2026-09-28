@@ -12,6 +12,7 @@ import '../services/file_io.dart';
 import '../services/fs/data_fs.dart';
 import '../services/update_check.dart';
 import '../services/web_import.dart';
+import '../services/wordblok_sermons.dart';
 import '../theme/app_colors.dart';
 import 'ui.dart';
 
@@ -20,7 +21,10 @@ class SettingsPanel extends ConsumerStatefulWidget {
 
   /// 켤 때 확인해 둔 업데이트 결과 (있으면 바로 보여 준다)
   final UpdateInfo? initialUpdate;
-  const SettingsPanel({super.key, required this.onClose, this.initialUpdate});
+
+  /// 성경나침반 내설교 폴더를 바꾸거나 새로고침했을 때 (사이드 목록 다시 읽기)
+  final VoidCallback? onWordblokChanged;
+  const SettingsPanel({super.key, required this.onClose, this.initialUpdate, this.onWordblokChanged});
 
   @override
   ConsumerState<SettingsPanel> createState() => _SettingsPanelState();
@@ -107,6 +111,58 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
     } catch (e) {
       if (mounted) setState(() => importStatus = 'error:${'$e'.replaceFirst('Exception: ', '')}');
     }
+  }
+
+  // ── 성경나침반 내설교 폴더 (읽기 전용) — 설교작성 사이드 목록에 보인다 ──
+  String wbName = wordblokFolderName();
+  bool wbPending = wordblokPermissionNeeded();
+
+  Future<void> handlePickWordblok() async {
+    try {
+      final name = await pickWordblokFolder();
+      if (name == null || !mounted) return;
+      setState(() {
+        wbName = name;
+        wbPending = false;
+      });
+      widget.onWordblokChanged?.call();
+    } catch (e) {
+      if (mounted) showAlert(context, '$e'.replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<void> handleRestoreWordblok() async {
+    final name = await requestWordblokPermission();
+    if (name == null || !mounted) return;
+    setState(() {
+      wbName = name;
+      wbPending = false;
+    });
+    widget.onWordblokChanged?.call();
+  }
+
+  void handleRefreshWordblok() {
+    clearWordblokCache();
+    widget.onWordblokChanged?.call();
+  }
+
+  /// 설정 칸의 테두리 버튼 — 글자색을 따로 줄 수 있는 OutlineBtn
+  Widget _wbButton(String label, VoidCallback onPressed, Color color, {bool alignLeft = true}) {
+    final c = context.c;
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        backgroundColor: c.bg,
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        alignment: alignLeft ? Alignment.centerLeft : Alignment.center,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: BorderSide(color: c.border)),
+        textStyle: const TextStyle(fontSize: 13),
+      ),
+      child: Text(label),
+    );
   }
 
   /// 회원 탈퇴 — 구독은 스토어에서 따로 해지해야 하고, 폴더의 파일은 남는다는 것을 알린 뒤 한 번 더 확인
@@ -259,6 +315,32 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
                 )
               else
                 OutlineBtn(ko ? '다른 폴더로 변경' : 'Change Folder', alignLeft: true, onPressed: () => ref.read(folderProvider).pickFolder()),
+            ]),
+            section(ko ? '성경나침반 내설교 폴더' : 'WordBlok Sermon Folder', [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  ko ? '성경나침반의 설교 파일(.scb)을 설교작성 목록에서 읽을 수 있습니다.' : 'Read WordBlok sermon files (.scb) in the sermon list.',
+                  style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.5),
+                ),
+              ),
+              if (wbName.isNotEmpty)
+                Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(wbName, style: TextStyle(fontSize: 13, color: c.text))),
+              if (wbPending)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: _wbButton(ko ? '권한 다시 허용' : 'Allow Access Again', handleRestoreWordblok, const Color(0xFFF59E0B)),
+                ),
+              Row(children: [
+                Expanded(
+                  child: _wbButton(
+                      wbName.isNotEmpty ? (ko ? '다른 폴더로 변경' : 'Change Folder') : (ko ? '폴더 선택' : 'Choose Folder'), handlePickWordblok, c.text),
+                ),
+                if (wbName.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  _wbButton(ko ? '새로고침' : 'Refresh', handleRefreshWordblok, c.textMuted, alignLeft: false),
+                ],
+              ]),
             ]),
             section(ko ? '계정' : 'Account', [
               if (ref.watch(authUserProvider).valueOrNull case final user?)
