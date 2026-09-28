@@ -428,6 +428,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         file: wb.file,
         lang: lang,
         fontSize: fontSizes['sermon']!,
+        // 구절이 바뀌었을 수 있으니 목록과 보기 화면의 항목을 바꿔 둔다
+        onSaved: (updated) => setState(() {
+          wordblokGroups = [
+            for (final g in wordblokGroups)
+              g.path != updated.path
+                  ? g
+                  : WordblokGroup(file: g.file, path: g.path, items: [for (final i in g.items) i.key == updated.key ? updated : i]),
+          ];
+          final sel = wordblokSelected;
+          if (sel != null) wordblokSelected = (item: updated, file: sel.file);
+        }),
       );
     }
     if (selectedItem == null) {

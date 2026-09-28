@@ -110,3 +110,30 @@ Future<List<List<Object?>>> query(String path, String sql, [List<Object?> args =
     for (final row in values) [for (final v in row as List) _cell(v)],
   ];
 }
+
+/// 저장 전 쓰기 권한 요청 — 저장 버튼 클릭 안에서 가장 먼저 불러야 권한 창이 뜬다
+Future<void> beginWrite(String path) async {
+  if (!_dbs.containsKey(path)) throw Exception('설교 파일이 열려 있지 않습니다');
+  try {
+    await _call('bbWbRequestWrite', [path.toJS]);
+  } catch (e) {
+    throw Exception(_jsMessage(e));
+  }
+}
+
+/// UPDATE 를 메모리 DB 에 실행하고, 바뀐 DB 를 원래 .scb 파일에 다시 쓴다
+Future<void> update(String path, String sql, List<Object?> args) async {
+  final db = await _open(path);
+  db.callMethodVarArgs<JSAny?>('run'.toJS, [sql.toJS, args.jsify()]);
+  final bytes = db.callMethod<JSAny?>('export'.toJS);
+  try {
+    await _call('bbWbWriteBytes', [path.toJS, bytes]);
+  } catch (e) {
+    // 파일에 못 썼으면 메모리 DB 도 버려 다음에 파일에서 다시 읽게 한다
+    _dbs.remove(path);
+    throw Exception(_jsMessage(e));
+  }
+}
+
+/// JS 오류 글자에서 앞의 'Error: ' 를 뗀다
+String _jsMessage(Object e) => '$e'.replaceFirst(RegExp(r'^(Exception|Error): '), '');

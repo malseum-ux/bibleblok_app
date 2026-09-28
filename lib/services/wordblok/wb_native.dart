@@ -122,3 +122,22 @@ Future<List<List<Object?>>> query(String path, String sql, [List<Object?> args =
   final rows = await db.rawQuery(sql, args);
   return [for (final r in rows) r.values.toList()];
 }
+
+Future<void> beginWrite(String path) async {
+  if (_root == null) throw Exception('설교 파일이 열려 있지 않습니다');
+}
+
+/// 저장할 때만 쓰기로 다시 열어 UPDATE 하고 닫는다 (읽기용으로 열어 둔 것은 닫아 다음에 새로 읽게 한다)
+Future<void> update(String path, String sql, List<Object?> args) async {
+  final root = _root;
+  if (root == null) throw Exception('설교 파일이 열려 있지 않습니다');
+  final cached = _dbs.remove(path);
+  await cached?.close();
+  final abs = p.joinAll([root, ...path.split('/')]);
+  final db = await _factory.openDatabase(abs, options: OpenDatabaseOptions(readOnly: false, singleInstance: false));
+  try {
+    await db.rawUpdate(sql, args);
+  } finally {
+    await db.close();
+  }
+}

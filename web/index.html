@@ -166,12 +166,14 @@
       } catch (e) { console.error('[bb] delete error', path, e); return false; }
     }
 
-    // ── 성경나침반 내설교 폴더 (읽기 전용) ─────────────────────────────────
-    // 저장 폴더와 같은 IndexedDB(bb-folders)에 다른 키로 보관한다. 읽기 권한만 쓴다.
+    // ── 성경나침반 내설교 폴더 ───────────────────────────────────────
+    // 저장 폴더와 같은 IndexedDB(bb-folders)에 다른 키로 보관한다.
+    // 목록은 읽기 권한으로 읽고, 저장할 때 쓰기 권한을 묻는다 (저장 버튼 클릭 안에서).
     // 웹 앱(bibleblok/src/wordblokSermons.js)과 같은 규칙. 플러터 쪽: lib/services/wordblok/wb_web.dart
 
     let _bbWbHandle = null;   // 연결된 내설교 폴더
     let _bbWbStored = null;   // 권한이 풀려 다시 허용을 기다리는 핸들
+    const _bbWbFiles = new Map(); // 파일 경로 → 파일 핸들 (저장용)
     const _BB_WB_KEY = 'wordblok-sermon';
 
     async function _bbWbSaveIDB(handle) {
@@ -206,10 +208,11 @@
     async function bbWbPick() {
       if (!window.showDirectoryPicker) throw new Error('unsupported');
       let h;
-      try { h = await showDirectoryPicker({ mode: 'read' }); }
+      try { h = await showDirectoryPicker({ mode: 'readwrite' }); }
       catch (e) { if (e && e.name === 'AbortError') return null; throw e; }
       _bbWbHandle = h;
       _bbWbStored = null;
+      _bbWbFiles.clear();
       await _bbWbSaveIDB(h);
       return h.name;
     }
@@ -247,9 +250,10 @@
           if (entry.name.startsWith('.')) continue;
           const path = prefix ? prefix + '/' + entry.name : entry.name;
           if (entry.kind === 'directory') await scan(entry, path);
-          else if (entry.name.toLowerCase().endsWith('.scb')) out.push(path);
+          else if (entry.name.toLowerCase().endsWith('.scb')) { out.push(path); _bbWbFiles.set(path, entry); }
         }
       }
+      _bbWbFiles.clear();
       try { await scan(_bbWbHandle, ''); } catch (e) { console.error('[bb] scb scan error', e); }
       return out.sort((a, b) => a.localeCompare(b, 'ko'));
     }
@@ -258,12 +262,33 @@
     async function bbWbReadBytes(path) {
       if (!_bbWbHandle) return null;
       try {
-        const parts = _bbParts(path);
-        let dir = _bbWbHandle;
-        for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
-        const fh = await dir.getFileHandle(parts[parts.length - 1]);
+        let fh = _bbWbFiles.get(path);
+        if (!fh) {
+          const parts = _bbParts(path);
+          let dir = _bbWbHandle;
+          for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+          fh = await dir.getFileHandle(parts[parts.length - 1]);
+          _bbWbFiles.set(path, fh);
+        }
         return new Uint8Array(await (await fh.getFile()).arrayBuffer());
       } catch (e) { console.warn('[bb] scb read failed', path, e); return null; }
+    }
+
+    // 저장 전 쓰기 권한 요청 — 저장 버튼 클릭 안에서 불러야 권한 창이 뜬다
+    async function bbWbRequestWrite(path) {
+      if (!_bbWbHandle || !_bbWbFiles.has(path)) throw new Error('설교 파일이 열려 있지 않습니다');
+      if (await _bbWbHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') throw new Error('쓰기 권한이 없습니다');
+      return true;
+    }
+
+    // 고친 DB 바이트를 원래 .scb 파일에 다시 쓴다
+    async function bbWbWriteBytes(path, bytes) {
+      const fh = _bbWbFiles.get(path);
+      if (!fh) throw new Error('설교 파일이 열려 있지 않습니다');
+      const w = await fh.createWritable();
+      await w.write(bytes);
+      await w.close();
+      return true;
     }
   </script>
   <!-- SQLite (sql.js) — 성경나침반 내설교(.scb) 읽기용 -->
