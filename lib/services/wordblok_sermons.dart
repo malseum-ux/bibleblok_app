@@ -182,3 +182,32 @@ Future<({int? book, int? chapter, int? verse})> saveWordblokSermon(String path, 
   }
   return ref;
 }
+
+// ── 설교작성 화면(StepView)으로 열 때 ─────────────────────────────────
+
+String _esc(String t) => t.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+/// .scb 글 → 초안 HTML (줄 하나 = 문단 하나, 설교문 초안과 같은 문단 모양)
+String textToDraftHtml(String? text) =>
+    (text ?? '').split('\n').where((l) => l.trim().isNotEmpty).map((l) => '<p>${_esc(l)}</p>').join();
+
+/// 초안 HTML → .scb 글 (문단은 줄바꿈, 서식은 버림)
+String draftHtmlToText(String? html) {
+  final h = html ?? '';
+  if (!h.trimLeft().startsWith('<')) return h.trim();
+  return h
+      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'<[^>]+>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&amp;', '&')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+}
+
+/// 쓰기 권한 미리 받기 — 웹은 설교를 누른 클릭 안에서 불러야 권한 창이 뜬다 (초안은 나중에 저절로 저장되므로)
+Future<bool> requestWordblokWrite() => web.isWeb ? web.requestWrite() : native.requestWrite();

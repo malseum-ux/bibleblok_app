@@ -4,6 +4,7 @@
 //   설교작성/ 예배인도/ 새벽설교/ 교재작성/   ← 탭별 폴더
 //     <사이드바 폴더>/<하위 폴더>/날짜 제목.json   ← 사이드바 폴더 = 실제 폴더
 //   settings.json                              ← 기억된 지시어·학습 메모리·사용자 지시항목
+//   .성경나침반/파일이름.json                    ← 성경나침반 내설교를 설교작성 화면으로 열 때의 AI 단계 결과 (숨김 폴더라 목록에 안 보임)
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -38,6 +39,26 @@ class CustomStepItem {
         order: (j['order'] as num?)?.toInt() ?? 0,
       );
   Map<String, dynamic> toJson() => {'id': id, 'tab': tab, 'stepKey': stepKey, 'label': label, 'text': text, 'order': order};
+}
+
+/// 성경나침반 내설교 한 편 — 설교작성 화면(StepView)으로 열 때의 원본 정보
+class CompanionSource {
+  final String key; // '파일경로#id'
+  final String path; // 내설교 폴더 기준 .scb 파일 경로
+  final int id;
+  final String title;
+  final String date;
+  final String passage; // '요 3:16'
+  final String draftHtml; // .scb 본문을 문단으로 바꾼 것
+  const CompanionSource({
+    required this.key,
+    required this.path,
+    required this.id,
+    required this.title,
+    required this.date,
+    required this.passage,
+    required this.draftHtml,
+  });
 }
 
 class MemoryEntry {
@@ -137,7 +158,7 @@ class Store extends ChangeNotifier {
     for (final i in items[tab]!) {
       if (i.id == id) return i;
     }
-    return null;
+    return tab == 'sermon' ? _companions[id] : null;
   }
 
   String _dirOf(Item item) => _join(tabDirNames[item.tab]!, item.folder);
@@ -158,6 +179,8 @@ class Store extends ChangeNotifier {
   }
 
   Future<void> _write(Item item) async {
+    final source = _companionSources[item.id];
+    if (source != null) return _writeCompanion(item, source);
     final name = _uniqueName(item);
     final path = _join(_dirOf(item), name);
     final ok = await fs.writeText(path, const JsonEncoder.withIndent('  ').convert(item.toJson()));
@@ -206,7 +229,7 @@ class Store extends ChangeNotifier {
   }
 
   Future<void> moveItem(Item item, String folder) async {
-    if (item.folder == folder) return;
+    if (item.folder == folder || isCompanion(item)) return; // 짝 항목은 옮기지 않는다
     final oldPath = item.fileName == null ? null : _join(_dirOf(item), item.fileName!);
     item.folder = folder;
     item.fileName = null;
@@ -481,5 +504,74 @@ class Store extends ChangeNotifier {
     });
     await saveSettings();
     return added;
+  }
+
+  // ── 성경나침반 내설교 짝 항목 ─────────────────────────────────────────────────
+  // 성경나침반 내설교를 설교작성 화면(StepView)으로 열 때 쓰는 항목 — 사이드바 목록(items)에는 넣지 않는다.
+  // AI 단계 결과는 저장 폴더의 숨김 폴더 '.성경나침반/파일이름.json' 에, 설교문 초안·본문은 원래 .scb 에 저장한다.
+
+  static const companionDir = '.성경나침반';
+  final Map<String, Item> _companions = {}; // id → 항목
+  final Map<String, CompanionSource> _companionSources = {};
+  final Map<String, ({String? draft, String? passage})> _companionSaved = {}; // 마지막으로 .scb 에 저장한 초안·본문
+
+  /// 초안·본문을 .scb 에 저장하는 함수 (홈 화면이 정해 준다)
+  Future<void> Function(Item item, CompanionSource source)? companionDraftSaver;
+
+  bool isCompanion(Item item) => _companionSources.containsKey(item.id);
+
+  CompanionSource? companionSource(Item item) => _companionSources[item.id];
+
+  Future<void> _writeCompanion(Item item, CompanionSource source) async {
+    final path = _join(companionDir, item.fileName!);
+    final ok = await fs.writeText(path, const JsonEncoder.withIndent('  ').convert(item.toJson()));
+    if (!ok) throw Exception('파일을 저장하지 못했습니다: $path');
+    // 초안이나 본문이 바뀐 때만 .scb 에 쓴다 (단계 결과만 바뀌면 건너뜀)
+    final saved = _companionSaved[item.id];
+    final saver = companionDraftSaver;
+    if (saver != null && (item.draft != saved?.draft || item.passage != saved?.passage)) {
+      await saver(item, source);
+      _companionSaved[item.id] = (draft: item.draft, passage: item.passage);
+    }
+  }
+
+  /// 성경나침반 설교 한 편을 설교작성 항목 모양으로 연다. 전에 만든 AI 단계 결과가 있으면 함께 불러온다.
+  Future<Item> openCompanion(CompanionSource source) async {
+    final id = 'wordblok:${source.key}';
+    final fileName = '${source.key.replaceAll(RegExp(r'[#/]'), ' ').replaceAll(RegExp(r'[\\/:*?"<>|]'), ' ').trim()}.json';
+    final item = _companions[id] ?? (_companions[id] = await _loadCompanion(id, fileName));
+    // 제목·날짜·본문·초안은 늘 .scb 기준
+    _companionSources[id] = source;
+    item.title = source.title;
+    item.date = source.date.isEmpty ? null : source.date;
+    item.passage = source.passage;
+    item.draft = source.draftHtml;
+    _companionSaved[id] = (draft: item.draft, passage: item.passage);
+    return item;
+  }
+
+  /// 전에 저장한 AI 단계 결과 등을 숨김 폴더에서 읽는다 (없으면 빈 항목)
+  Future<Item> _loadCompanion(String id, String fileName) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final text = await fs.readText(_join(companionDir, fileName));
+    if (text != null) {
+      try {
+        final saved = Item.fromJson(jsonDecode(text) as Map<String, dynamic>, folder: '', fileName: fileName);
+        return Item(
+          id: id,
+          tab: 'sermon',
+          createdAt: saved.createdAt != 0 ? saved.createdAt : now,
+          category: saved.category,
+          emphasis: saved.emphasis,
+          season: saved.season,
+          lectionary: saved.lectionary,
+          steps: saved.steps,
+          fileName: fileName,
+        );
+      } catch (_) {
+        // 형식이 맞지 않으면 새로
+      }
+    }
+    return Item(id: id, tab: 'sermon', createdAt: now, fileName: fileName);
   }
 }

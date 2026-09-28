@@ -281,6 +281,12 @@
       return true;
     }
 
+    // 쓰기 권한 미리 받기 — 설교를 누른 클릭 안에서 불러야 권한 창이 뜬다 (초안은 나중에 저절로 저장되므로)
+    async function bbWbRequestFolderWrite() {
+      if (!_bbWbHandle) return false;
+      try { return await _bbWbHandle.requestPermission({ mode: 'readwrite' }) === 'granted'; } catch (_) { return false; }
+    }
+
     // 고친 DB 바이트를 원래 .scb 파일에 다시 쓴다
     async function bbWbWriteBytes(path, bytes) {
       const fh = _bbWbFiles.get(path);

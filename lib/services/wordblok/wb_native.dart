@@ -141,3 +141,6 @@ Future<void> update(String path, String sql, List<Object?> args) async {
     await db.close();
   }
 }
+
+/// 네이티브는 따로 물을 권한이 없다
+Future<bool> requestWrite() async => _root != null;

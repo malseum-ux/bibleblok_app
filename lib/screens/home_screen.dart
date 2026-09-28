@@ -16,7 +16,6 @@ import '../widgets/sidebar.dart';
 import '../widgets/ui.dart';
 import 'cell_view.dart';
 import 'step_view.dart';
-import 'wordblok_sermon_view.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -46,7 +45,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // ── 성경나침반 내설교 (설교작성 사이드 목록, 읽기 전용) ──────────────────────
   List<WordblokGroup> wordblokGroups = [];
-  ({WordblokItem item, String file})? wordblokSelected;
+  ({WordblokItem item, String file, Item appItem})? wordblokSelected; // appItem: 설교작성 화면용 짝 항목
 
   Future<void> loadWordblok() async {
     List<WordblokGroup> groups;
@@ -59,16 +58,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (mounted) setState(() => wordblokGroups = groups);
   }
 
-  void selectWordblok(WordblokItem item) => setState(() {
-        // 같은 설교를 다시 누르면 닫는다 (새 설교 만들기 화면으로)
-        if (wordblokSelected?.item.key == item.key) {
-          wordblokSelected = null;
-          return;
-        }
-        final group = wordblokGroups.where((g) => g.path == item.path).firstOrNull;
+  Future<void> selectWordblok(WordblokItem item) async {
+    // 같은 설교를 다시 누르면 닫는다 (새 설교 만들기 화면으로)
+    if (wordblokSelected?.item.key == item.key) {
+      setState(() => wordblokSelected = null);
+      return;
+    }
+    // 초안은 나중에 저절로 저장되므로, 이 클릭 안에서 쓰기 권한을 미리 받는다 (웹)
+    await requestWordblokWrite();
+    final group = wordblokGroups.where((g) => g.path == item.path).firstOrNull;
+    try {
+      final text = await readWordblokSermon(item.path, item.id);
+      final appItem = await store.openCompanion(CompanionSource(
+        key: item.key,
+        path: item.path,
+        id: item.id,
+        title: item.title,
+        date: item.date,
+        passage: passageLabel(item.book, item.chapter, item.verse),
+        draftHtml: textToDraftHtml(text),
+      ));
+      if (!mounted) return;
+      setState(() {
         selectedId = null;
-        wordblokSelected = (item: item, file: group?.file ?? '');
+        wordblokSelected = (item: item, file: group?.file ?? '', appItem: appItem);
       });
+    } catch (e) {
+      if (mounted) showAlert(context, '$e'.replaceFirst('Exception: ', ''));
+    }
+  }
+
+  /// 설교작성 화면에서 초안·본문이 바뀌면 원래 .scb 에 저장하고, 구절이 바뀌었으면 목록에도 반영 (Store 가 부른다)
+  Future<void> saveCompanionDraft(Item app, CompanionSource source) async {
+    final ref = await saveWordblokSermon(source.path, source.id, app.passage ?? '', draftHtmlToText(app.draft));
+    if (!mounted) return;
+    setState(() {
+      wordblokGroups = [
+        for (final g in wordblokGroups)
+          g.path != source.path
+              ? g
+              : WordblokGroup(file: g.file, path: g.path, items: [
+                  for (final i in g.items) i.key == source.key ? i.withRef(ref.book, ref.chapter, ref.verse) : i,
+                ]),
+      ];
+    });
+  }
   bool? sidebarVisible; // null = 화면 폭으로 결정 (넓으면 보임)
   double sidebarWidth = 240;
   bool searchOpen = false;
@@ -190,6 +224,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final c = context.c;
     final settings = ref.watch(settingsProvider);
     final s = ref.store;
+    s.companionDraftSaver = saveCompanionDraft; // 저장소가 바뀌어도 늘 연결되도록 그릴 때마다 정한다
     final lang = settings.lang;
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 900;
@@ -419,26 +454,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _main(BuildContext context, String lang, bool isMobile, Item? selectedItem, AppSettings settings) {
     final c = context.c;
-    // 성경나침반 내설교 한 편 (읽기 전용) — 새 항목 양식 대신
+    // 성경나침반 내설교: 설교작성과 같은 화면 — 단계 결과는 저장 폴더 숨김 폴더에, 초안·본문은 .scb 에
     final wb = wordblokSelected;
     if (wb != null && tab == 'sermon') {
-      return WordblokSermonView(
-        key: ValueKey(wb.item.key),
-        item: wb.item,
-        file: wb.file,
+      return StepView(
+        key: ValueKey(wb.appItem.id),
+        item: wb.appItem,
         lang: lang,
-        fontSize: fontSizes['sermon']!,
         bible: settings.bible,
-        // 구절이 바뀌었을 수 있으니 목록과 보기 화면의 항목을 바꿔 둔다
-        onSaved: (updated) => setState(() {
-          wordblokGroups = [
-            for (final g in wordblokGroups)
-              g.path != updated.path
-                  ? g
-                  : WordblokGroup(file: g.file, path: g.path, items: [for (final i in g.items) i.key == updated.key ? updated : i]),
-          ];
-          final sel = wordblokSelected;
-          if (sel != null) wordblokSelected = (item: updated, file: sel.file);
+        fontSize: fontSizes['sermon']!,
+        onFontSizeChange: (v) => setState(() => fontSizes['sermon'] = v),
+        isMobile: isMobile,
+        onGoToCell: (cell) => setState(() {
+          tab = 'cell';
+          selectedId = cell.id;
+          wordblokSelected = null;
+          selectedFolder = null;
+          closeSearch();
         }),
       );
     }

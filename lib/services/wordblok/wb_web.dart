@@ -137,3 +137,13 @@ Future<void> update(String path, String sql, List<Object?> args) async {
 
 /// JS 오류 글자에서 앞의 'Error: ' 를 뗀다
 String _jsMessage(Object e) => '$e'.replaceFirst(RegExp(r'^(Exception|Error): '), '');
+
+/// 쓰기 권한 미리 받기 — 설교를 누른 클릭 안에서 불러야 권한 창이 뜬다
+Future<bool> requestWrite() async {
+  try {
+    final r = await _call('bbWbRequestFolderWrite');
+    return r.isA<JSBoolean>() && (r as JSBoolean).toDart;
+  } catch (_) {
+    return false;
+  }
+}

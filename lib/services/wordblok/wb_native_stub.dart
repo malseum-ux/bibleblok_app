@@ -9,3 +9,4 @@ Future<List<String>> listScb() async => [];
 Future<List<List<Object?>>> query(String path, String sql, [List<Object?> args = const []]) async => [];
 Future<void> beginWrite(String path) async {}
 Future<void> update(String path, String sql, List<Object?> args) async {}
+Future<bool> requestWrite() async => false;
