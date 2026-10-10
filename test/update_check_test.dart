@@ -79,8 +79,15 @@ void main() {
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
     await _scrollToAbout(tester);
+    await tester.ensureVisible(find.text('업데이트 확인')); // 화면 끝에 걸치지 않게 위로 올린다
+    await tester.pumpAndSettle();
     await tester.tap(find.text('업데이트 확인'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('최신 버전입니다.'),
+      200,
+      scrollable: find.descendant(of: find.byType(SettingsPanel), matching: find.byType(Scrollable)).first,
+    );
     expect(find.text('최신 버전입니다.'), findsOneWidget);
   });
 }

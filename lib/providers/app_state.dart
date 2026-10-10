@@ -10,17 +10,24 @@ import '../services/store.dart';
 
 // ── 앱 설정 (기기별) — 웹 settings.js 와 같은 키·기본값 ─────────────────────────
 
+/// 글꼴 크기 범위·기본값 — 설정 화면과 화면 위 A-·A+ 버튼이 같은 값을 바꾼다 (웹 settings.js 와 같다)
+const kFontMin = 11.0;
+const kFontMax = 24.0;
+const kFontDefault = 15.0;
+
 class AppSettings {
   final String theme; // system | light | dark
   final String lang; // ko | en
-  const AppSettings({this.theme = 'system', this.lang = 'ko'});
+  final double fontSize; // 본문 글꼴 크기 — 모든 탭이 같이 쓴다
+  const AppSettings({this.theme = 'system', this.lang = 'ko', this.fontSize = kFontDefault});
 
   /// 성경 번역본 — 고르지 않고 언어에 따라 정해진다 (한국어 개역개정, 영어 ESV)
   String get bible => lang == 'en' ? 'ESV' : '개역개정성경';
 
-  AppSettings copyWith({String? theme, String? lang}) => AppSettings(theme: theme ?? this.theme, lang: lang ?? this.lang);
+  AppSettings copyWith({String? theme, String? lang, double? fontSize}) =>
+      AppSettings(theme: theme ?? this.theme, lang: lang ?? this.lang, fontSize: fontSize ?? this.fontSize);
 
-  Map<String, String> toJson() => {'theme': theme, 'lang': lang};
+  Map<String, Object> toJson() => {'theme': theme, 'lang': lang, 'fontSize': fontSize};
 }
 
 const _settingsKey = 'bibleblok-settings';
@@ -37,6 +44,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       state = AppSettings(
         theme: (j['theme'] ?? 'system') as String,
         lang: (j['lang'] ?? 'ko') as String,
+        fontSize: ((j['fontSize'] as num?)?.toDouble() ?? kFontDefault).clamp(kFontMin, kFontMax),
       );
     } catch (_) {}
   }
@@ -48,6 +56,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   Future<void> setLang(String lang) => update(state.copyWith(lang: lang));
+
+  Future<void> setFontSize(double size) => update(state.copyWith(fontSize: size.clamp(kFontMin, kFontMax)));
 }
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) => SettingsNotifier());

@@ -59,6 +59,7 @@ class _StepViewState extends ConsumerState<StepView> {
   String content = '';
   late final TextHistory draftHistory = TextHistory(item.draft ?? '');
   final TextHistory resultHistory = TextHistory('');
+  bool slashHelpOpen = false; // // 지시문 안내 펼침 (설교작성은 우측 초안창, 예배·새벽은 AI 생성 화면 위)
   bool editing = false;
   bool draftEditing = false;
   bool refining = false;
@@ -618,6 +619,10 @@ class _StepViewState extends ConsumerState<StepView> {
               FontSizeButtons(fontSize: widget.fontSize, onChange: widget.onFontSizeChange, height: 28, fontSize11: false),
               const SizedBox(width: 8),
             ],
+            if (tab != 'sermon') ...[
+              SmallButton(label: en ? '// Guide' : '지시문 안내', active: slashHelpOpen, onPressed: () => setState(() => slashHelpOpen = !slashHelpOpen)),
+              const SizedBox(width: 8),
+            ],
             UndoButton(icon: Icons.undo, enabled: resultHistory.canUndo && !loading && !refining, onPressed: () => applyStepHistory(resultHistory.undo)),
             const SizedBox(width: 4),
             UndoButton(icon: Icons.redo, enabled: resultHistory.canRedo && !loading && !refining, onPressed: () => applyStepHistory(resultHistory.redo)),
@@ -633,6 +638,7 @@ class _StepViewState extends ConsumerState<StepView> {
             ),
           ]),
         ),
+        if (tab != 'sermon' && slashHelpOpen) SlashHelpPanel(lang: lang),
         if (!editing && instructionsOpen && hasItems)
           InstructionsPanel(
             items: currentItems,
@@ -744,9 +750,12 @@ class _StepViewState extends ConsumerState<StepView> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
           child: Row(children: [
-            Text((ko ? '설교문 초안' : 'Sermon Draft').toUpperCase(),
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.7, color: c.textMuted)),
-            const SizedBox(width: 18),
+            // 휴대폰 폭에서는 자리가 모자라 제목을 숨긴다
+            if (!widget.isMobile) ...[
+              Text((ko ? '설교문 초안' : 'Sermon Draft').toUpperCase(),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.7, color: c.textMuted)),
+              const SizedBox(width: 18),
+            ],
             Expanded(
               child: TextField(
                 controller: keywordCtrl,
@@ -776,11 +785,18 @@ class _StepViewState extends ConsumerState<StepView> {
             const SizedBox(width: 8),
             FontSizeButtons(fontSize: widget.fontSize, onChange: widget.onFontSizeChange, height: 24, fontSize11: true),
             const SizedBox(width: 8),
+            // 휴대폰 폭에서는 물음표 아이콘으로 자리를 아낀다
+            if (widget.isMobile)
+              UndoButton(icon: Icons.help_outline, enabled: true, onPressed: () => setState(() => slashHelpOpen = !slashHelpOpen))
+            else
+              SmallButton(label: en ? '// Guide' : '지시문 안내', active: slashHelpOpen, onPressed: () => setState(() => slashHelpOpen = !slashHelpOpen)),
+            const SizedBox(width: 8),
             UndoButton(icon: Icons.undo, enabled: draftHistory.canUndo, onPressed: () => applyDraftHistory(draftHistory.undo)),
             const SizedBox(width: 8),
             UndoButton(icon: Icons.redo, enabled: draftHistory.canRedo, onPressed: () => applyDraftHistory(draftHistory.redo)),
           ]),
         ),
+        if (slashHelpOpen) SlashHelpPanel(lang: lang),
         Expanded(
           child: draftEditing
               ? RichView(

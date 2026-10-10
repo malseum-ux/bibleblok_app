@@ -110,7 +110,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String searchMode = 'sermon-title'; // sermon-title | sermon-content | worship
   List<Item>? searchResults;
   bool searchLoading = false;
-  final Map<String, double> fontSizes = {'sermon': 14, 'worship': 14, 'dawn': 14, 'cell': 14};
   bool creating = false; // 새 항목 저장 중 — 여러 번 눌러도 한 번만 만든다
   bool resizeHover = false;
 
@@ -462,8 +461,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         item: wb.appItem,
         lang: lang,
         bible: settings.bible,
-        fontSize: fontSizes['sermon']!,
-        onFontSizeChange: (v) => setState(() => fontSizes['sermon'] = v),
+        fontSize: settings.fontSize,
+        onFontSizeChange: (v) => ref.read(settingsProvider.notifier).setFontSize(v),
         isMobile: isMobile,
         onGoToCell: (cell) => setState(() {
           tab = 'cell';
@@ -522,8 +521,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         item: selectedItem,
         lang: lang,
         bible: settings.bible,
-        fontSize: fontSizes['cell']!,
-        onFontSizeChange: (v) => setState(() => fontSizes['cell'] = v),
+        fontSize: settings.fontSize,
+        onFontSizeChange: (v) => ref.read(settingsProvider.notifier).setFontSize(v),
         isMobile: isMobile,
         onGoToSermon: (sermon) => setState(() {
           tab = sermon.tab;
@@ -539,8 +538,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       item: selectedItem,
       lang: lang,
       bible: settings.bible,
-      fontSize: fontSizes[selectedItem.tab]!,
-      onFontSizeChange: (v) => setState(() => fontSizes[selectedItem.tab] = v),
+      fontSize: settings.fontSize,
+      onFontSizeChange: (v) => ref.read(settingsProvider.notifier).setFontSize(v),
       isMobile: isMobile,
       onGoToCell: (cell) => setState(() {
         tab = 'cell';

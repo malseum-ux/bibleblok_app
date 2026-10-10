@@ -65,6 +65,7 @@ class _CellViewState extends ConsumerState<CellView> {
   int currentStep = 0;
   String aiContent = '';
   final TextHistory resultHistory = TextHistory('');
+  bool slashHelpOpen = false; // // 지시문 안내 펼침
   bool loading = false;
   bool refining = false;
   String? error;
@@ -395,6 +396,8 @@ class _CellViewState extends ConsumerState<CellView> {
                   FontSizeButtons(fontSize: widget.fontSize, onChange: widget.onFontSizeChange),
                   const SizedBox(width: 8),
                 ],
+                SmallButton(label: en ? '// Guide' : '지시문 안내', active: slashHelpOpen, onPressed: () => setState(() => slashHelpOpen = !slashHelpOpen)),
+                const SizedBox(width: 8),
                 UndoButton(icon: Icons.undo, enabled: resultHistory.canUndo && !loading && !refining, onPressed: () => applyHistory(resultHistory.undo)),
                 const SizedBox(width: 4),
                 UndoButton(icon: Icons.redo, enabled: resultHistory.canRedo && !loading && !refining, onPressed: () => applyHistory(resultHistory.redo)),
@@ -408,6 +411,7 @@ class _CellViewState extends ConsumerState<CellView> {
                 ),
               ]),
             ),
+            if (slashHelpOpen) SlashHelpPanel(lang: lang),
             if (!editing && instructionsOpen)
               InstructionsPanel(
                 items: const [],

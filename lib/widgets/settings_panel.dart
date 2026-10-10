@@ -14,6 +14,7 @@ import '../services/update_check.dart';
 import '../services/web_import.dart';
 import '../services/wordblok_sermons.dart';
 import '../theme/app_colors.dart';
+import 'step_widgets.dart' show FontSizeButtons;
 import 'ui.dart';
 
 class SettingsPanel extends ConsumerStatefulWidget {
@@ -300,6 +301,13 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
             ]),
             section(ko ? '테마' : 'Theme', [options(themes, settings.theme, (v) => notifier.update(settings.copyWith(theme: v)))]),
             section(ko ? '언어' : 'Language', [options(languages, settings.lang, notifier.setLang)]),
+            section(ko ? '글꼴 크기' : 'Font Size', [
+              Row(children: [
+                FontSizeButtons(fontSize: settings.fontSize, onChange: notifier.setFontSize, height: 32),
+                if (settings.fontSize != kFontDefault)
+                  GhostTextButton(ko ? '기본(15)' : 'Default (15)', fontSize: 12, onPressed: () => notifier.setFontSize(kFontDefault)),
+              ]),
+            ]),
             section(ko ? '저장 폴더' : 'Data Folder', [
               Text(store.fs.displayName, style: TextStyle(fontSize: 13, color: c.text)),
               const SizedBox(height: 8),

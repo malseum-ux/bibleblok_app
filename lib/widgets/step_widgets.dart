@@ -105,6 +105,15 @@ class FontSizeButtons extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         btn('A-', () => onChange((fontSize - 1).clamp(11, 24))),
         Container(width: 1, height: height, color: c.border),
+        // 지금 크기
+        Container(
+          height: height,
+          constraints: const BoxConstraints(minWidth: 26),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(fontSize.round().toString(), style: TextStyle(fontSize: fontSize11 ? 11 : 12, color: c.text)),
+        ),
+        Container(width: 1, height: height, color: c.border),
         btn('A+', () => onChange((fontSize + 1).clamp(11, 24))),
       ]),
     );
@@ -379,6 +388,69 @@ class _InstructionsPanelState extends State<InstructionsPanel> {
           ),
         ]),
       ),
+    );
+  }
+}
+
+/// // 지시문 안내 — 버튼을 누르면 창 위쪽에 펼쳐진다 (웹 components/SlashHelp.jsx 와 같은 내용)
+class SlashHelpPanel extends StatelessWidget {
+  final String lang;
+  const SlashHelpPanel({super.key, required this.lang});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    final ko = lang != 'en';
+    final rows = ko
+        ? const [
+            ('//- 지시', '내 연구와 앞뒤 문맥을 참고해서 씁니다.'),
+            ('//+ 지시', '내 연구·앞뒤 문맥에 신학자 관점까지 더해서 씁니다.'),
+            ('// 지시', '연구·문맥 없이 신학자 관점으로 새로 씁니다.'),
+          ]
+        : const [
+            ('//- text', 'Writes using your research and the surrounding text.'),
+            ('//+ text', 'Adds theologians’ perspectives to your research and context.'),
+            ('// text', 'Writes fresh from theologians’ perspectives, without research or context.'),
+          ];
+    final body = TextStyle(fontSize: 13, height: 1.7, color: c.text);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(color: c.bgSidebar, border: Border(bottom: BorderSide(color: c.border))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(
+          ko
+              ? '글을 편집하다가 원하는 자리에 지시문을 쓰고 Enter를 누르면, 그 자리에 AI가 글을 써 넣습니다.'
+              : 'While editing, type a command where you want text and press Enter — AI writes it in that spot.',
+          style: body,
+        ),
+        const SizedBox(height: 6),
+        for (final (code, desc) in rows)
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(
+              width: 72,
+              child: Text(code, style: body.copyWith(color: c.accent, fontWeight: FontWeight.w600, fontFamily: 'monospace')),
+            ),
+            Expanded(child: Text(desc, style: body)),
+          ]),
+        const SizedBox(height: 6),
+        Text(
+          ko
+              ? '예: //- 이 부분에 예화 하나 추가 · 내 연구는 설교작성 탭의 다른 단계에 생성해 둔 내용입니다.'
+              : 'e.g. //- add an illustration here · "Research" means content generated in the other Sermon steps.',
+          style: TextStyle(fontSize: 12, height: 1.6, color: c.textMuted),
+        ),
+        const SizedBox(height: 8),
+        Text.rich(
+          TextSpan(style: body, children: [
+            TextSpan(text: ko ? '드래그해서 고치기' : 'Drag to edit', style: const TextStyle(fontWeight: FontWeight.w600)),
+            TextSpan(
+              text: ko
+                  ? ' — 글을 드래그해 선택하면 수정 창이 뜹니다. "짧게 줄여", "부드럽게"처럼 지시하고 Enter를 누르면 선택한 부분만 고칩니다.'
+                  : ' — Select text to open the edit box. Type an instruction like "shorten" and press Enter to change only the selection.',
+            ),
+          ]),
+        ),
+      ]),
     );
   }
 }
