@@ -365,7 +365,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              for (final t in [...tabs, 'plan'])
+              for (final t in ['plan', ...tabs])
                 Padding(
                   padding: const EdgeInsets.only(right: 2),
                   child: TextButton(
