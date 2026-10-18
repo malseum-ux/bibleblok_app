@@ -63,37 +63,49 @@ void main() {
     await tester.tap(find.text('설교 계획'));
     await tester.pumpAndSettle();
     expect(find.byType(PlanView), findsOneWidget);
-    expect(find.text('아브라함의 믿음'), findsOneWidget);
+    expect(find.text('창 12:1-4'), findsOneWidget);
     expect(find.text('연구 1/10'), findsOneWidget);
-    await tester.tap(find.text('아브라함의 믿음'));
+    await tester.tap(find.text('창 12:1-4'));
     await tester.pumpAndSettle();
     expect(find.byType(PlanView), findsNothing);
     expect(find.textContaining('설교문'), findsWidgets); // 설교작성 화면(우측 초안창)
   });
 
-  testWidgets('설교 계획 달력: 빈 주일의 "+ 새 설교"를 누르면 그 날짜로 설교가 만들어진다', (tester) async {
+  testWidgets('설교 계획 달력: 빈 주일 칸을 누르면 그 날짜로 주일설교가 만들어진다', (tester) async {
     final store = await _pumpHome(tester);
     await tester.tap(find.text('설교 계획'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('+ 새 설교').first);
+    final first = DateTime(DateTime.now().year, DateTime.now().month, 1);
+    final sunday = DateTime(first.year, first.month, 1 + (7 - first.weekday % 7) % 7);
+    await tester.tap(find.byKey(ValueKey('plan-${_ymd(sunday)}')));
     await tester.pumpAndSettle();
     final created = store.items['sermon']!.single;
-    expect(DateTime.parse(created.date!).weekday, DateTime.sunday);
+    expect(created.date, _ymd(sunday));
+    expect(store.items['dawn']!, isEmpty);
     expect(find.byType(PlanView), findsNothing);
   });
 
-  testWidgets('설교 계획 달력: 새벽설교를 켜면 평일 "+ 새벽"으로 그 날짜의 새벽설교가 만들어진다', (tester) async {
+  testWidgets('설교 계획 달력: 평일 칸을 누르면 새벽설교, 이미 있으면 그 새벽설교가 열린다', (tester) async {
     final store = await _pumpHome(tester);
+    final first = DateTime(DateTime.now().year, DateTime.now().month, 1);
+    final monday = DateTime(first.year, first.month, 1 + (8 - first.weekday) % 7);
+    final cellDate = DateTime(monday.year, monday.month, monday.day - 1); // 그 앞 주일
+    await store.createItem('worship', {'date': _ymd(cellDate)}, '');
+    await store.createItem('cell', {'date': _ymd(cellDate)}, '');
     await tester.tap(find.text('설교 계획'));
     await tester.pumpAndSettle();
-    expect(find.text('+ 새벽'), findsNothing);
-    await tester.tap(find.text('새벽설교 함께 보기'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('+ 새벽').first);
+    expect(find.text('예배인도 O'), findsOneWidget);
+    expect(find.text('교재작성 O'), findsOneWidget);
+    await tester.tap(find.byKey(ValueKey('plan-${_ymd(monday)}')));
     await tester.pumpAndSettle();
     final created = store.items['dawn']!.single;
-    expect(DateTime.parse(created.date!).weekday, isNot(DateTime.sunday));
-    expect(find.byType(PlanView), findsNothing);
+    expect(created.date, _ymd(monday));
+    expect(store.items['sermon']!, isEmpty);
+    await tester.tap(find.text('설교 계획'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('plan-${_ymd(monday)}')));
+    await tester.pumpAndSettle();
+    expect(store.items['dawn']!.length, 1); // 새로 만들지 않고 연다
   });
 
   testWidgets('설교 시간 버튼: 초안이 있으면 "약 N분", 누르면 꺼진다', (tester) async {

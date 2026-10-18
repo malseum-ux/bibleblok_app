@@ -1,7 +1,7 @@
-// 설교 계획 — 일반 달력(일~토 7칸). 주일 칸에 교회력 절기·설교·진행 상태, 켜면 평일 칸에 새벽설교
+// 설교 계획 — 일반 달력(일~토 7칸). 주일 칸에 교회력 절기·주일설교 본문·연구/초안·예배인도·교재작성, 평일 칸에 새벽설교
+// 날짜 칸을 누르면 그날 설교로(없으면 새로): 주일은 주일설교, 평일은 새벽설교
 // 따로 저장하는 것은 없다: 이미 있는 설교의 날짜로 채운다 (웹 components/PlanView.jsx 와 같은 화면)
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import '../models/item.dart';
@@ -13,6 +13,13 @@ import '../theme/app_colors.dart';
 String _pad(int n) => n.toString().padLeft(2, '0');
 String _ymd(DateTime d) => '${d.year}-${_pad(d.month)}-${_pad(d.day)}';
 const _red = Color(0xFFDC2626);
+
+/// 항목마다 다른 색 (웹 PLAN_COLORS 와 같음)
+const kPlanSermon = Color(0xFF534AB7);
+const kPlanProgress = Color(0xFF16A34A);
+const kPlanWorship = Color(0xFFD97706);
+const kPlanDawn = Color(0xFF2563EB);
+const kPlanCell = Color(0xFF0D9488);
 
 /// 달력에 보일 날짜들 — 그달 1일이 든 주의 일요일부터, 말일이 든 주의 토요일까지
 List<DateTime> calendarDays(int year, int month) {
@@ -43,11 +50,9 @@ class PlanView extends StatefulWidget {
 }
 
 class _PlanViewState extends State<PlanView> {
-  static const _dawnKey = 'bibleblok-plan-dawn';
   late int year;
   late int month;
   late String picked; // 휴대폰 폭: 누른 날짜
-  bool showDawn = false;
 
   bool get ko => widget.lang != 'en';
 
@@ -58,14 +63,6 @@ class _PlanViewState extends State<PlanView> {
     year = now.year;
     month = now.month;
     picked = _ymd(now);
-    SharedPreferences.getInstance().then((p) {
-      if (mounted) setState(() => showDawn = p.getBool(_dawnKey) ?? false);
-    });
-  }
-
-  void _setDawn(bool v) {
-    setState(() => showDawn = v);
-    SharedPreferences.getInstance().then((p) => p.setBool(_dawnKey, v));
   }
 
   void _move(int n) => setState(() {
@@ -90,10 +87,10 @@ class _PlanViewState extends State<PlanView> {
     return m;
   }
 
-  String _titleOf(Item it) =>
-      (it.title?.isNotEmpty == true ? it.title : null) ??
+  String _textOf(Item it) =>
       (it.passage?.isNotEmpty == true ? it.passage : null) ??
-      (ko ? '제목 없음' : 'Untitled');
+      (it.title?.isNotEmpty == true ? it.title : null) ??
+      (ko ? '본문 없음' : 'No passage');
 
   @override
   Widget build(BuildContext context) {
@@ -103,33 +100,23 @@ class _PlanViewState extends State<PlanView> {
     final sermons = _byDate(widget.store.items['sermon']!);
     final dawns = _byDate(widget.store.items['dawn']!);
     final worshipDates = widget.store.items['worship']!.map((w) => w.date).whereType<String>().toSet();
+    final cellDates = widget.store.items['cell']!.map((w) => w.date).whereType<String>().toSet();
     final total = stepsForTab('sermon').length;
     final dayNames = ko ? ['일', '월', '화', '수', '목', '금', '토'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final days = calendarDays(year, month);
     final rows = days.length ~/ 7;
+    const one = TextOverflow.ellipsis;
 
-    Widget chip(String text, {Color? bg, Color? fg, Color? border}) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(9),
-            border: border != null ? Border.all(color: border) : null,
-          ),
-          child: Text(text, style: TextStyle(fontSize: 10, height: 1.5, color: fg ?? c.textMuted)),
-        );
-
-    Widget addBtn(String label, VoidCallback onTap) => Align(
-          alignment: Alignment.centerLeft,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(5),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
-              decoration: BoxDecoration(border: Border.all(color: c.border), borderRadius: BorderRadius.circular(5)),
-              child: Text(label, style: TextStyle(fontSize: 11, color: c.textMuted)),
-            ),
-          ),
-        );
+    // 날짜를 누르면: 주일은 주일설교, 평일은 새벽설교 — 있으면 열고 없으면 새로
+    void go(String date, bool isSunday) {
+      final kind = isSunday ? 'sermon' : 'dawn';
+      final list = (isSunday ? sermons : dawns)[date];
+      if (list != null && list.isNotEmpty) {
+        widget.onOpen(kind, list.first.id);
+      } else {
+        widget.onCreate(date, kind);
+      }
+    }
 
     Widget navBtn(String label, VoidCallback onTap) => InkWell(
           onTap: onTap,
@@ -146,75 +133,54 @@ class _PlanViewState extends State<PlanView> {
     // 한 날짜의 내용 (큰 칸 안, 또는 휴대폰 아래 펼침)
     Widget dayContent(String date, bool isSunday, {bool compact = false}) {
       final list = sermons[date] ?? const <Item>[];
-      final dayDawns = showDawn ? (dawns[date] ?? const <Item>[]) : const <Item>[];
-      final one = TextOverflow.ellipsis;
+      final dayDawns = dawns[date] ?? const <Item>[];
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
         for (final s in list)
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: InkWell(
+            padding: const EdgeInsets.only(bottom: 3),
+            child: GestureDetector(
               onTap: () => widget.onOpen('sermon', s.id),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(_titleOf(s),
+                Text(_textOf(s),
                     maxLines: 1,
                     overflow: one,
-                    style: TextStyle(fontSize: compact ? 14 : 13, fontWeight: FontWeight.w600, color: c.text)),
-                if (s.title?.isNotEmpty == true && s.passage?.isNotEmpty == true)
-                  Text(s.passage!, maxLines: 1, overflow: one, style: TextStyle(fontSize: 11, color: c.textMuted)),
-                const SizedBox(height: 2),
-                Wrap(spacing: 4, runSpacing: 3, children: [
-                  Builder(builder: (_) {
-                    final done = s.steps.values.where((v) => stripHtml(v).trim().isNotEmpty).length;
-                    final full = done >= total;
-                    return chip(ko ? '연구 $done/$total' : '$done/$total',
-                        bg: full ? c.accent : null, fg: full ? Colors.white : c.accent, border: c.accent);
-                  }),
-                  if (stripHtml(s.draft).trim().isNotEmpty)
-                    chip(ko ? '초안' : 'Draft', bg: AppColors.success.withValues(alpha: 0.13), fg: AppColors.success),
-                  if (s.category?.isNotEmpty == true) chip(s.category!, bg: c.bgSidebar, border: c.border),
-                ]),
+                    style: TextStyle(fontSize: compact ? 15 : 14, fontWeight: FontWeight.w600, color: kPlanSermon)),
+                Builder(builder: (_) {
+                  final done = s.steps.values.where((v) => stripHtml(v).trim().isNotEmpty).length;
+                  final draft = stripHtml(s.draft).trim().isNotEmpty;
+                  return Text(
+                    '${ko ? '연구' : 'Research'} $done/$total${draft ? (ko ? ' · 초안' : ' · Draft') : ''}',
+                    maxLines: 1,
+                    overflow: one,
+                    style: const TextStyle(fontSize: 11, color: kPlanProgress),
+                  );
+                }),
               ]),
             ),
           ),
-        if (isSunday && list.isEmpty)
+        if (isSunday && worshipDates.contains(date))
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: addBtn(ko ? '+ 새 설교' : '+ Sermon', () => widget.onCreate(date, 'sermon')),
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Text(ko ? '예배인도 O' : 'Worship O', style: const TextStyle(fontSize: 11, color: kPlanWorship)),
           ),
-        if (worshipDates.contains(date))
+        if (isSunday && cellDates.contains(date))
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(ko ? '예배인도 있음' : 'Worship ready', style: TextStyle(fontSize: 10, color: c.textMuted)),
+            padding: const EdgeInsets.only(bottom: 3),
+            child: Text(ko ? '교재작성 O' : 'Cell O', style: const TextStyle(fontSize: 11, color: kPlanCell)),
           ),
         for (final d in dayDawns)
-          InkWell(
+          GestureDetector(
             onTap: () => widget.onOpen('dawn', d.id),
             child: Padding(
               padding: const EdgeInsets.only(bottom: 3),
-              child: Text.rich(
-                TextSpan(children: [
-                  TextSpan(text: ko ? '새벽 · ' : 'Dawn · ', style: TextStyle(color: c.textMuted)),
-                  TextSpan(text: _titleOf(d)),
-                ]),
-                maxLines: 1,
-                overflow: one,
-                style: TextStyle(fontSize: compact ? 13 : 11, color: c.text),
-              ),
+              child: Text('${ko ? '새벽 · ' : 'Dawn · '}${_textOf(d)}',
+                  maxLines: 1, overflow: one, style: TextStyle(fontSize: compact ? 14 : 12, color: kPlanDawn)),
             ),
           ),
-        if (showDawn && !isSunday && dayDawns.isEmpty) addBtn(ko ? '+ 새벽' : '+ Dawn', () => widget.onCreate(date, 'dawn')),
       ]);
     }
 
-    Widget dot(Color? fill, {Color? border}) => Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(
-            color: fill,
-            shape: BoxShape.circle,
-            border: border != null ? Border.all(color: border) : null,
-          ),
-        );
+    Widget dot(Color color) => Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle));
 
     Widget cell(DateTime d) {
       final date = _ymd(d);
@@ -223,15 +189,13 @@ class _PlanViewState extends State<PlanView> {
       final isToday = date == today;
       final season = isSunday ? getChurchSeason(date) : '';
       final color = isSunday ? getSeasonColor(season) : null;
-      final hasSermon = sermons[date]?.isNotEmpty == true;
-      final hasDawn = showDawn && dawns[date]?.isNotEmpty == true;
       final body = Container(
         padding: isMobile ? const EdgeInsets.all(4) : const EdgeInsets.fromLTRB(8, 4, 8, 6),
         decoration: BoxDecoration(
           color: isMobile && picked == date
               ? c.accentLight
               : inMonth
-                  ? null
+                  ? c.bg
                   : c.bgSidebar,
           border: Border(
             top: BorderSide(color: color?.color ?? Colors.transparent, width: 3),
@@ -261,23 +225,29 @@ class _PlanViewState extends State<PlanView> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(season,
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: color?.color ?? c.textMuted)),
+                      maxLines: 1, overflow: one, style: TextStyle(fontSize: 10, color: color?.color ?? c.textMuted)),
                 ),
               ],
             ]),
             const SizedBox(height: 3),
             if (isMobile)
               Wrap(spacing: 3, runSpacing: 3, children: [
-                if (hasSermon) dot(c.accent),
-                if (hasDawn) dot(c.textMuted),
-                if (worshipDates.contains(date)) dot(null, border: c.accent),
+                if (sermons[date]?.isNotEmpty == true) dot(kPlanSermon),
+                if (dawns[date]?.isNotEmpty == true) dot(kPlanDawn),
+                if (isSunday && worshipDates.contains(date)) dot(kPlanWorship),
+                if (isSunday && cellDates.contains(date)) dot(kPlanCell),
               ])
             else
               Expanded(child: SingleChildScrollView(child: dayContent(date, isSunday))),
           ]),
         ),
       );
-      return isMobile ? GestureDetector(onTap: () => setState(() => picked = date), child: body) : body;
+      return GestureDetector(
+        key: ValueKey('plan-$date'),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => isMobile ? setState(() => picked = date) : go(date, isSunday),
+        child: MouseRegion(cursor: SystemMouseCursors.click, child: body),
+      );
     }
 
     final grid = Column(children: [
@@ -294,23 +264,32 @@ class _PlanViewState extends State<PlanView> {
       final d = DateTime.parse(picked);
       final isSunday = d.weekday == DateTime.sunday;
       final season = isSunday ? getChurchSeason(picked) : '';
-      return SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text.rich(
-            TextSpan(children: [
-              TextSpan(text: ko ? '${d.month}월 ${d.day}일 (${dayNames[d.weekday % 7]})' : picked),
-              if (season.isNotEmpty)
-                TextSpan(
-                  text: '  $season',
-                  style: TextStyle(fontWeight: FontWeight.w400, fontSize: 12, color: getSeasonColor(season)?.color),
-                ),
-            ]),
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: c.textHeading),
-          ),
-          const SizedBox(height: 8),
-          dayContent(picked, isSunday, compact: true),
-        ]),
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => go(picked, isSunday),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text.rich(
+              TextSpan(children: [
+                TextSpan(text: ko ? '${d.month}월 ${d.day}일 (${dayNames[d.weekday % 7]})' : picked),
+                if (season.isNotEmpty)
+                  TextSpan(
+                    text: '  $season',
+                    style: TextStyle(fontWeight: FontWeight.w400, fontSize: 12, color: getSeasonColor(season)?.color),
+                  ),
+              ]),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: c.textHeading),
+            ),
+            const SizedBox(height: 8),
+            dayContent(picked, isSunday, compact: true),
+            const SizedBox(height: 10),
+            Text(
+              isSunday ? (ko ? '눌러서 주일설교로' : 'Tap to open sermon') : (ko ? '눌러서 새벽설교로' : 'Tap to open dawn sermon'),
+              style: TextStyle(fontSize: 12, color: c.textMuted),
+            ),
+          ]),
+        ),
       );
     }
 
@@ -331,16 +310,6 @@ class _PlanViewState extends State<PlanView> {
           navBtn('›', () => _move(1)),
           const SizedBox(width: 8),
           navBtn(ko ? '오늘' : 'Today', _goToday),
-          const Spacer(),
-          InkWell(
-            onTap: () => _setDawn(!showDawn),
-            child: Row(children: [
-              SizedBox(width: 22, height: 22, child: Checkbox(value: showDawn, onChanged: (v) => _setDawn(v ?? false), activeColor: c.accent)),
-              const SizedBox(width: 6),
-              Text(isMobile ? (ko ? '새벽' : 'Dawn') : (ko ? '새벽설교 함께 보기' : 'Dawn sermons'),
-                  style: TextStyle(fontSize: 13, color: c.text)),
-            ]),
-          ),
         ]),
       ),
       Container(
