@@ -308,6 +308,20 @@ class _SettingsPanelState extends ConsumerState<SettingsPanel> {
                   GhostTextButton(ko ? '기본(15)' : 'Default (15)', fontSize: 12, onPressed: () => notifier.setFontSize(kFontDefault)),
               ]),
             ]),
+            section(ko ? '설교 속도' : 'Preaching Speed', [
+              options(
+                [
+                  for (var k = 0; k < kSpeechRates.length; k++)
+                    Option('${kSpeechRates[k]}',
+                        '${(ko ? ['느림', '보통', '빠름'] : ['Slow', 'Normal', 'Fast'])[k]}${ko ? ' (1분 ${kSpeechRates[k]}자)' : ' (${kSpeechRates[k]} chars/min)'}'),
+                ],
+                '${settings.speechRate}',
+                (v) => notifier.setSpeechRate(int.parse(v)),
+              ),
+              const SizedBox(height: 6),
+              Text(ko ? '설교문 초안의 예상 설교 시간을 계산하는 기준입니다.' : 'Used to estimate preaching time of the sermon draft.',
+                  style: TextStyle(fontSize: 11, color: c.textMuted)),
+            ]),
             section(ko ? '저장 폴더' : 'Data Folder', [
               Text(store.fs.displayName, style: TextStyle(fontSize: 13, color: c.text)),
               const SizedBox(height: 8),

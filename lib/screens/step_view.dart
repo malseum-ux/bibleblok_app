@@ -750,8 +750,8 @@ class _StepViewState extends ConsumerState<StepView> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
           child: Row(children: [
-            // 휴대폰 폭에서는 자리가 모자라 제목을 숨긴다
-            if (!widget.isMobile) ...[
+            // 휴대폰 폭이거나 초안창이 좁으면 자리가 모자라 제목을 숨긴다
+            if (!widget.isMobile && MediaQuery.sizeOf(context).width >= 1500) ...[
               Text((ko ? '설교문 초안' : 'Sermon Draft').toUpperCase(),
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.7, color: c.textMuted)),
               const SizedBox(width: 18),
@@ -764,7 +764,7 @@ class _StepViewState extends ConsumerState<StepView> {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6)),
               ),
             ),
-            const SizedBox(width: 18),
+            SizedBox(width: widget.isMobile ? 8 : 18),
             Opacity(
               opacity: draftHasContent ? 1 : 0.4,
               child: TextButton(
@@ -784,6 +784,27 @@ class _StepViewState extends ConsumerState<StepView> {
             ),
             const SizedBox(width: 8),
             FontSizeButtons(fontSize: widget.fontSize, onChange: widget.onFontSizeChange, height: 24, fontSize11: true),
+            const SizedBox(width: 8),
+            // 예상 설교 시간 — 켜면 "약 25분 · 7,500자"(휴대폰 폭은 "25분"), 끄면 "설교 시간"
+            Builder(builder: (context) {
+              final settings = ref.watch(settingsProvider);
+              final chars = stripHtml(draftHistory.text).replaceAll(RegExp(r'\s'), '').length;
+              final on = settings.showSermonTime && chars > 0;
+              final mins = sermonMinutes(chars, settings.speechRate);
+              final label = on
+                  ? (widget.isMobile ? (ko ? '$mins분' : '${mins}m') : (ko ? '약 $mins분' : '~$mins min'))
+                  : (widget.isMobile ? (ko ? '시간' : 'Time') : (ko ? '설교 시간' : 'Time'));
+              void toggle() => ref.read(settingsProvider.notifier).toggleSermonTime();
+              return Tooltip(
+                message: ko
+                    ? '예상 설교 시간 · ${_withComma(chars)}자 (1분에 ${settings.speechRate}자 기준)'
+                    : 'Estimated preaching time · ${_withComma(chars)} chars (${settings.speechRate} chars/min)',
+                // 휴대폰 폭에서 꺼져 있으면 시계 아이콘으로 자리를 아낀다
+                child: widget.isMobile && !on
+                    ? UndoButton(icon: Icons.timer_outlined, enabled: true, onPressed: toggle)
+                    : SmallButton(label: label, active: on, onPressed: toggle),
+              );
+            }),
             const SizedBox(width: 8),
             // 휴대폰 폭에서는 물음표 아이콘으로 자리를 아낀다
             if (widget.isMobile)
@@ -837,3 +858,6 @@ class _StepViewState extends ConsumerState<StepView> {
     );
   }
 }
+
+/// 1234567 → 1,234,567
+String _withComma(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');

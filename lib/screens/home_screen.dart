@@ -15,6 +15,7 @@ import '../widgets/settings_panel.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/ui.dart';
 import 'cell_view.dart';
+import 'plan_view.dart';
 import 'step_view.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -228,7 +229,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 900;
     final showSidebar = sidebarVisible ?? !isMobile;
-    final items = s.items[tab]!;
+    // '설교 계획'은 화면 탭이라 자료(항목·폴더)가 없다
+    final items = tab == 'plan' ? const <Item>[] : s.items[tab]!;
     Item? selectedItem;
     if (selectedId != null) {
       for (final t in tabs) {
@@ -240,7 +242,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       key: ValueKey('sidebar-$tab'),
       tab: tab,
       items: items,
-      folders: s.folders[tab]!,
+      folders: tab == 'plan' ? const <String>[] : s.folders[tab]!,
       selectedItemId: selectedId,
       selectedFolder: selectedFolder,
       onSelect: (item) => setState(() {
@@ -288,14 +290,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _header(context, lang, isMobile, showSidebar),
           Expanded(
             child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              if (!isMobile && showSidebar) sidebar,
-              if (!isMobile && showSidebar) _resizeHandle(c),
+              if (!isMobile && showSidebar && tab != 'plan') sidebar,
+              if (!isMobile && showSidebar && tab != 'plan') _resizeHandle(c),
               Expanded(child: Container(color: c.bg, child: _main(context, lang, isMobile, selectedItem, settings))),
             ]),
           ),
         ]),
         // 모바일 사이드바 — 화면 위에 덮는다
-        if (isMobile && showSidebar) ...[
+        if (isMobile && showSidebar && tab != 'plan') ...[
           Positioned.fill(
             top: 48,
             child: GestureDetector(onTap: () => setState(() => sidebarVisible = false), child: Container(color: Colors.black.withValues(alpha: 0.4))),
@@ -363,7 +365,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              for (final t in tabs)
+              for (final t in [...tabs, 'plan'])
                 Padding(
                   padding: const EdgeInsets.only(right: 2),
                   child: TextButton(
@@ -377,7 +379,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                       textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                     ),
-                    child: Text(tabLabel(t, lang)),
+                    child: Text(t == 'plan' ? (lang == 'en' ? 'Plan' : '설교 계획') : tabLabel(t, lang)),
                   ),
                 ),
             ]),
@@ -453,6 +455,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _main(BuildContext context, String lang, bool isMobile, Item? selectedItem, AppSettings settings) {
     final c = context.c;
+    // 연간 설교 계획 — 설교를 누르면 그 설교로, 빈 주일을 누르면 그 날짜로 새 설교
+    if (tab == 'plan') {
+      return PlanView(
+        store: store,
+        lang: lang,
+        onOpen: (t, id) => setState(() {
+          tab = t;
+          selectedId = id;
+          wordblokSelected = null;
+          selectedFolder = null;
+        }),
+        onCreate: (date) => _guard(() async {
+          final item = await store.createItem('sermon', {'date': date}, '');
+          if (!mounted) return;
+          setState(() {
+            tab = 'sermon';
+            selectedId = item.id;
+            wordblokSelected = null;
+            selectedFolder = null;
+          });
+        }, '저장 실패: ', 'Save failed: '),
+      );
+    }
     // 성경나침반 내설교: 설교작성과 같은 화면 — 단계 결과는 저장 폴더 숨김 폴더에, 초안·본문은 .scb 에
     final wb = wordblokSelected;
     if (wb != null && tab == 'sermon') {

@@ -15,19 +15,40 @@ const kFontMin = 11.0;
 const kFontMax = 24.0;
 const kFontDefault = 15.0;
 
+/// 설교 속도 — 1분에 읽는 글자 수 (느림·보통·빠름, 웹 settings.js 와 같다)
+const kSpeechRates = [250, 300, 350];
+const kSpeechDefault = 300;
+
+/// 예상 설교 시간(분) — 공백을 뺀 글자 수 ÷ 설교 속도 (반올림, 글이 있으면 최소 1분)
+int sermonMinutes(int chars, int rate) => chars > 0 ? (chars / rate).round().clamp(1, 1 << 30) : 0;
+
 class AppSettings {
   final String theme; // system | light | dark
   final String lang; // ko | en
   final double fontSize; // 본문 글꼴 크기 — 모든 탭이 같이 쓴다
-  const AppSettings({this.theme = 'system', this.lang = 'ko', this.fontSize = kFontDefault});
+  final int speechRate; // 설교 속도 (1분에 읽는 글자 수)
+  final bool showSermonTime; // 우측 초안창에 예상 설교 시간 보이기
+  const AppSettings({
+    this.theme = 'system',
+    this.lang = 'ko',
+    this.fontSize = kFontDefault,
+    this.speechRate = kSpeechDefault,
+    this.showSermonTime = true,
+  });
 
   /// 성경 번역본 — 고르지 않고 언어에 따라 정해진다 (한국어 개역개정, 영어 ESV)
   String get bible => lang == 'en' ? 'ESV' : '개역개정성경';
 
-  AppSettings copyWith({String? theme, String? lang, double? fontSize}) =>
-      AppSettings(theme: theme ?? this.theme, lang: lang ?? this.lang, fontSize: fontSize ?? this.fontSize);
+  AppSettings copyWith({String? theme, String? lang, double? fontSize, int? speechRate, bool? showSermonTime}) => AppSettings(
+        theme: theme ?? this.theme,
+        lang: lang ?? this.lang,
+        fontSize: fontSize ?? this.fontSize,
+        speechRate: speechRate ?? this.speechRate,
+        showSermonTime: showSermonTime ?? this.showSermonTime,
+      );
 
-  Map<String, Object> toJson() => {'theme': theme, 'lang': lang, 'fontSize': fontSize};
+  Map<String, Object> toJson() =>
+      {'theme': theme, 'lang': lang, 'fontSize': fontSize, 'speechRate': speechRate, 'showSermonTime': showSermonTime};
 }
 
 const _settingsKey = 'bibleblok-settings';
@@ -45,6 +66,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         theme: (j['theme'] ?? 'system') as String,
         lang: (j['lang'] ?? 'ko') as String,
         fontSize: ((j['fontSize'] as num?)?.toDouble() ?? kFontDefault).clamp(kFontMin, kFontMax),
+        speechRate: kSpeechRates.contains(j['speechRate']) ? j['speechRate'] as int : kSpeechDefault,
+        showSermonTime: j['showSermonTime'] != false,
       );
     } catch (_) {}
   }
@@ -58,6 +81,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   Future<void> setLang(String lang) => update(state.copyWith(lang: lang));
 
   Future<void> setFontSize(double size) => update(state.copyWith(fontSize: size.clamp(kFontMin, kFontMax)));
+
+  Future<void> setSpeechRate(int rate) => update(state.copyWith(speechRate: kSpeechRates.contains(rate) ? rate : kSpeechDefault));
+
+  Future<void> toggleSermonTime() => update(state.copyWith(showSermonTime: !state.showSermonTime));
 }
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) => SettingsNotifier());
