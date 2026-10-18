@@ -161,7 +161,7 @@ class _PlanViewState extends State<PlanView> {
         if (isSunday && worshipDates.contains(date))
           Padding(
             padding: const EdgeInsets.only(bottom: 3),
-            child: Text(ko ? '예배인도 O' : 'Worship O', style: const TextStyle(fontSize: 11, color: kPlanWorship)),
+            child: Text(ko ? '예배인도' : 'Worship', style: const TextStyle(fontSize: 11, color: kPlanWorship)),
           ),
         if (isSunday && cellDates.contains(date))
           Padding(

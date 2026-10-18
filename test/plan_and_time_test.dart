@@ -94,7 +94,7 @@ void main() {
     await store.createItem('cell', {'date': _ymd(cellDate)}, '');
     await tester.tap(find.text('설교 계획'));
     await tester.pumpAndSettle();
-    expect(find.text('예배인도 O'), findsOneWidget);
+    expect(find.descendant(of: find.byType(PlanView), matching: find.text('예배인도')), findsOneWidget);
     expect(find.text('교재작성 O'), findsOneWidget);
     await tester.tap(find.byKey(ValueKey('plan-${_ymd(monday)}')));
     await tester.pumpAndSettle();
