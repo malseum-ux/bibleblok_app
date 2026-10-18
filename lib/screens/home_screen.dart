@@ -455,7 +455,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _main(BuildContext context, String lang, bool isMobile, Item? selectedItem, AppSettings settings) {
     final c = context.c;
-    // 연간 설교 계획 — 설교를 누르면 그 설교로, 빈 주일을 누르면 그 날짜로 새 설교
+    // 설교 계획 달력 — 설교를 누르면 그 설교로, 빈 주일·평일을 누르면 그 날짜로 새 설교·새벽설교
     if (tab == 'plan') {
       return PlanView(
         store: store,
@@ -466,11 +466,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           wordblokSelected = null;
           selectedFolder = null;
         }),
-        onCreate: (date) => _guard(() async {
-          final item = await store.createItem('sermon', {'date': date}, '');
+        isMobile: isMobile,
+        onCreate: (date, kind) => _guard(() async {
+          final item = await store.createItem(kind, {'date': date}, '');
           if (!mounted) return;
           setState(() {
-            tab = 'sermon';
+            tab = kind;
             selectedId = item.id;
             wordblokSelected = null;
             selectedFolder = null;

@@ -44,13 +44,17 @@ void main() {
     expect(sermonMinutes(7000, 350), 20);
   });
 
-  test('그해 주일은 52~53개이고 모두 일요일', () {
-    final s = sundaysOf(2026);
-    expect(s.length, inInclusiveRange(52, 53));
-    expect(s.every((d) => d.weekday == DateTime.sunday && d.year == 2026), isTrue);
+  test('달력 날짜: 일요일에 시작해 토요일에 끝나고 그달을 모두 담는다', () {
+    for (final (y, m) in [(2026, 10), (2026, 2), (2027, 1), (2026, 8)]) {
+      final d = calendarDays(y, m);
+      expect(d.length % 7, 0);
+      expect(d.first.weekday, DateTime.sunday);
+      expect(d.last.weekday, DateTime.saturday);
+      expect(d.where((x) => x.month == m).length, DateTime(y, m + 1, 0).day);
+    }
   });
 
-  testWidgets('설교 계획: 이번 주 설교가 진행 상태와 함께 보이고, 누르면 그 설교가 열린다', (tester) async {
+  testWidgets('설교 계획 달력: 이번 주 설교가 진행 상태와 함께 보이고, 누르면 그 설교가 열린다', (tester) async {
     final store = await _pumpHome(tester);
     final now = DateTime.now();
     final sunday = DateTime(now.year, now.month, now.day - now.weekday % 7);
@@ -67,16 +71,28 @@ void main() {
     expect(find.textContaining('설교문'), findsWidgets); // 설교작성 화면(우측 초안창)
   });
 
-  testWidgets('설교 계획: 빈 주일의 "+ 새 설교"를 누르면 그 날짜로 설교가 만들어진다', (tester) async {
+  testWidgets('설교 계획 달력: 빈 주일의 "+ 새 설교"를 누르면 그 날짜로 설교가 만들어진다', (tester) async {
     final store = await _pumpHome(tester);
     await tester.tap(find.text('설교 계획'));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('+ 새 설교').first); // 이번 주로 스크롤돼 있어 1월 칸을 화면 안으로
     await tester.pumpAndSettle();
     await tester.tap(find.text('+ 새 설교').first);
     await tester.pumpAndSettle();
     final created = store.items['sermon']!.single;
     expect(DateTime.parse(created.date!).weekday, DateTime.sunday);
+    expect(find.byType(PlanView), findsNothing);
+  });
+
+  testWidgets('설교 계획 달력: 새벽설교를 켜면 평일 "+ 새벽"으로 그 날짜의 새벽설교가 만들어진다', (tester) async {
+    final store = await _pumpHome(tester);
+    await tester.tap(find.text('설교 계획'));
+    await tester.pumpAndSettle();
+    expect(find.text('+ 새벽'), findsNothing);
+    await tester.tap(find.text('새벽설교 함께 보기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('+ 새벽').first);
+    await tester.pumpAndSettle();
+    final created = store.items['dawn']!.single;
+    expect(DateTime.parse(created.date!).weekday, isNot(DateTime.sunday));
     expect(find.byType(PlanView), findsNothing);
   });
 
