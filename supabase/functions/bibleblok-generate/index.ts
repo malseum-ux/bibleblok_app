@@ -6,6 +6,7 @@
 // - 브라우저(웹)에서도 읽을 수 있도록 모든 응답에 CORS 허가를 붙인다
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { buildRequest } from '../_shared/bibleblok_prompts.js'
+import { litKey, civilKey, pickRefs, refsText } from '../_shared/worship_refs.js'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,20 @@ Deno.serve(async (req) => {
     const raw = await req.text()
     if (raw.length > MAX_INPUT_CHARS) return json({ error: { message: '요청이 너무 깁니다.' } }, 413)
     const body = JSON.parse(raw)
+    // 예배인도: 같은 교회력 주일의 참고 자료를 비공개 표에서 찾아 붙인다 (앱이 보낸 refs 는 쓰지 않는다)
+    if (body?.kind === 'worshipCombined' && body.params && typeof body.params === 'object') {
+      delete body.params.refs
+      const date = typeof body.params.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.params.date) ? body.params.date : null
+      if (date) {
+        try {
+          const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+          const { data: rows } = await admin.from('worship_refs')
+            .select('date, lit_key, civil_key, occasion, data')
+            .or(`lit_key.eq.${litKey(date)},civil_key.eq.${civilKey(date)}`)
+          body.params.refs = refsText(pickRefs(rows || [], date))
+        } catch { /* 자료를 못 읽어도 생성은 계속 */ }
+      }
+    }
     const built = typeof body?.kind === 'string' ? buildRequest(body.kind, body.params) : null
     if (!built) return json({ error: { message: '알 수 없는 요청입니다.' } }, 400)
     const { messages, stream, maxTokens } = built

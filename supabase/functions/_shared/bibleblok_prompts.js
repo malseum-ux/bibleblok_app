@@ -506,7 +506,7 @@ function buildSermonStep({ stepKey, passage, emphasis, lang, bible, seriesCtx, s
   return { prompt: fullPrompt, systemExtra: '' }
 }
 
-function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelectedItems, userKeyword = '', customStepTexts = {}, memory = '' }) {
+function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelectedItems, userKeyword = '', customStepTexts = {}, memory = '', refs = '' }) {
 
   // 단계별로 선택된 지시항목을 사용해 동적으로 프롬프트 구성
   const sel = (key) => {
@@ -585,6 +585,8 @@ ${sel('sending')}
 [12. 축도]
 - "주 예수 그리스도의 은혜와, ~~~하나님의 사랑과, ~~~성령의 위로(교통)하심이 ~~~ 성도 위에 함께 하시기를 축원하노라" 형식으로 작성. 삼위 각각의 수식어를 절기와 말씀에 맞게 채울 것. (8~12줄)
 `
+  // 같은 교회력 주일의 실제 예배 자료 (서버가 붙인다 — bibleblok-generate/index.ts)
+  if (refs) prompt += `\n\n${refs}`
   const extraCustom = Object.values(customStepTexts).filter(Boolean).join('\n')
   if (extraCustom) prompt += `\n\n[추가 지시항목]\n${extraCustom}`
   prompt = withCitationPolicy(prompt, lang)
