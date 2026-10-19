@@ -57,8 +57,9 @@ export function civilKey(dateStr) {
 // 달력으로 정해지는 특별 주일 — 이런 날은 교회력 위치보다 달력 위치가 우선
 const SPECIAL = /추수|맥추|종교개혁|어린이|어버이|가정|스승|성서주일|광복|삼일|3[.·]?1절|6[.·]?25|한국전쟁|송구영신|신년|성탄|군선교|장애인|환경|교회창립|노동|민족|평화통일/
 
-/// 그날에 맞는 자료 고르기 — 가장 잘 맞는 것부터 최대 limit 개
-export function pickRefs(rows, dateStr, limit = 3) {
+/// 그날에 맞는 자료 고르기 — 가장 잘 맞는 것부터 최대 limit 개, 한 자료집에서 perSeries 개까지
+/// (자료집 = source 에서 끝의 해를 뺀 이름. 자료집이 여럿이면 골고루 섞인다)
+export function pickRefs(rows, dateStr, limit = 4, perSeries = 2) {
   const lk = litKey(dateStr), ck = civilKey(dateStr)
   const scored = rows.map(r => {
     let s = 0
@@ -68,19 +69,28 @@ export function pickRefs(rows, dateStr, limit = 3) {
     return { r, s }
   }).filter(x => x.s > 0)
   scored.sort((a, b) => b.s - a.s || (a.r.date < b.r.date ? 1 : -1))
-  return scored.slice(0, limit).map(x => x.r)
+  const count = {}, out = []
+  for (const { r } of scored) {
+    const series = String(r.source || '').replace(/\s*\d{4}$/, '')
+    if ((count[series] || 0) >= perSeries) continue
+    count[series] = (count[series] || 0) + 1
+    out.push(r)
+    if (out.length >= limit) break
+  }
+  return out
 }
 
 const v = x => (x && (x.ref || x.text)) ? `${x.ref || ''} ${x.text ? `"${x.text}"` : ''}`.trim() : ''
-const hymns = list => (list || []).map(h => `${h.no}장 ${h.title || ''}`.trim()).join(', ')
+const hymns = list => (list || []).filter(h => h?.no || h?.title).map(h => `${h.no ? `${h.no}장 ` : ''}${h.title || ''}`.trim()).join(', ')
 
 /// AI 에게 줄 참고 자료 글
 export function refsText(rows) {
   if (!rows?.length) return ''
   const parts = rows.map((r, i) => {
     const d = r.data || {}
-    const lines = [`(${i + 1}) ${r.occasion || ''} · 본문 ${d.passage || ''}${d.color ? ` · 예전색 ${d.color}` : ''}`]
+    const lines = [`(${i + 1}) ${r.occasion || ''}${d.passage ? ` · 본문 ${d.passage}` : ''}${d.color ? ` · 예전색 ${d.color}` : ''}`]
     const add = (label, val) => { if (val) lines.push(`- ${label}: ${val}`) }
+    add('성서정과', d.lectionary)
     add('예배의 부름', v(d.callVerse))
     add('기원', d.invocation)
     add('참회에의 초대', d.confessionInvite)
@@ -89,11 +99,17 @@ export function refsText(rows) {
     add('목회기도', d.pastoralPrayer)
     add('헌금 성구', v(d.offeringVerse))
     add('봉헌기도', d.offeringPrayer)
-    if (d.responsive?.no) add('성시교독', `${d.responsive.no}번 ${d.responsive.title || ''}`.trim())
+    if (d.responsive?.no || d.responsive?.title || d.responsive?.ref) {
+      add('성시교독', [d.responsive.no ? `${d.responsive.no}번` : '', d.responsive.title, d.responsive.ref].filter(Boolean).join(' '))
+    }
+    add('대표기도', d.representativePrayer)
+    // 찬송 번호는 새찬송가 번호만 (통일찬송가 번호는 지금 찬송가와 달라 넘기지 않는다)
     if (d.hymnal !== '통일찬송가') {
       add('설교 전 찬송', hymns(d.hymnsBefore))
       add('설교 후 찬송', hymns(d.hymnsAfter))
+      add('이 주일의 찬송', hymns(d.hymns))
     }
+    add('축도', d.benediction)
     if (d.sermon?.theme || d.sermon?.title) add('설교 주제', [d.sermon.theme, d.sermon.title].filter(Boolean).join(' / '))
     return lines.join('\n')
   })

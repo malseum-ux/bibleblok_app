@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
         try {
           const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
           const { data: rows } = await admin.from('worship_refs')
-            .select('date, lit_key, civil_key, occasion, data')
+            .select('source, date, lit_key, civil_key, occasion, data')
             .or(`lit_key.eq.${litKey(date)},civil_key.eq.${civilKey(date)}`)
           body.params.refs = refsText(pickRefs(rows || [], date))
         } catch { /* 자료를 못 읽어도 생성은 계속 */ }
