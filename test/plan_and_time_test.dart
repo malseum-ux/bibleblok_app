@@ -108,6 +108,19 @@ void main() {
     expect(store.items['dawn']!.length, 1); // 새로 만들지 않고 연다
   });
 
+  testWidgets('설교 계획 달력: 창이 900px 아래여도 달력 폭이 넉넉하면 칸 안에 글자로 보인다', (tester) async {
+    final store = await _pumpHome(tester);
+    tester.view.physicalSize = const Size(880, 900);
+    await tester.pumpAndSettle();
+    final now = DateTime.now();
+    final sunday = DateTime(now.year, now.month, now.day - now.weekday % 7);
+    await store.createItem('sermon', {'date': _ymd(sunday), 'passage': '창 12:1-4'}, '');
+    await tester.tap(find.text('설교 계획'));
+    await tester.pumpAndSettle();
+    expect(find.text('창 12:1-4'), findsOneWidget);
+    expect(find.text('눌러서 주일설교로'), findsNothing); // 휴대폰 펼침 없음
+  });
+
   testWidgets('설교 시간 버튼: 초안이 있으면 "약 N분", 누르면 꺼진다', (tester) async {
     final store = await _pumpHome(tester);
     final item = await store.createItem('sermon', {'date': '2026-10-18', 'title': '시험 설교'}, '');

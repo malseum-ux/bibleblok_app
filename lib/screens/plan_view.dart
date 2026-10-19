@@ -92,10 +92,14 @@ class _PlanViewState extends State<PlanView> {
       (it.title?.isNotEmpty == true ? it.title : null) ??
       (ko ? '본문 없음' : 'No passage');
 
+  // 휴대폰 모양(점 + 아래 펼침)은 달력 폭이 좁을 때만 — 창을 줄여도 칸이 넉넉하면 글자로 보여 준다
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, box) => _build(context, box.hasBoundedWidth ? box.maxWidth < 600 : widget.isMobile),
+      );
+
+  Widget _build(BuildContext context, bool isMobile) {
     final c = context.c;
-    final isMobile = widget.isMobile;
     final today = _ymd(DateTime.now());
     final sermons = _byDate(widget.store.items['sermon']!);
     final dawns = _byDate(widget.store.items['dawn']!);
