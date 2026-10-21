@@ -1,6 +1,6 @@
 // BlokZip 휴대폰 앱 공용 사진 AI 중계 — 지금은 바이타블록(음식 사진·처방전)만
-// 앱 안에 OpenRouter 키를 넣지 않기 위한 서버 함수. 키는 Supabase 비밀 값에만 있다
-// (OPENROUTER_KEY_VITABLOK, 없으면 OPENROUTER_API_KEY)
+// 앱 안에 AI 키를 넣지 않기 위한 서버 함수. DeepSeek deepseek-flash 가 사진을 받는다 (2026-10 공식 문서 확인)
+// 키는 blok-ai 와 같은 앱별 DeepSeek 키 (DEEPSEEK_KEY_VITABLOK, 없으면 DEEPSEEK_API_KEY)
 //
 // 보호 장치
 // - x-blok-app 머리말이 등록된 앱 이름일 때만 받는다
@@ -13,9 +13,9 @@ const corsHeaders = {
 }
 
 const ALLOWED_APPS = new Set(['vitablok'])
-const MODEL = 'google/gemini-3.5-flash-lite'
+const MODEL = 'deepseek-flash'
 const MAX_IMAGE_CHARS = 12_000_000 // base64 기준 약 9MB
-const ALLOWED_MEDIA = new Set(['image/jpeg', 'image/png', 'image/heic', 'image/webp'])
+const ALLOWED_MEDIA = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']) // DeepSeek 지원 형식
 const WINDOW_MS = 10 * 60 * 1000
 const WINDOW_LIMIT = 20
 const hits = new Map<string, number[]>()
@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   if (tooMany(`${app}:${ip}`)) return json({ error: { message: '잠시 후 다시 시도해 주세요.' } }, 429)
 
-  const apiKey = Deno.env.get(`OPENROUTER_KEY_${app.toUpperCase()}`) || Deno.env.get('OPENROUTER_API_KEY') || ''
+  const apiKey = Deno.env.get(`DEEPSEEK_KEY_${app.toUpperCase()}`) || Deno.env.get('DEEPSEEK_API_KEY') || ''
   if (!apiKey) return json({ error: { message: 'API key not configured on server' } }, 500)
 
   try {
@@ -81,11 +81,12 @@ Deno.serve(async (req) => {
     if (image.length > MAX_IMAGE_CHARS) return json({ error: { message: '사진이 너무 큽니다.' } }, 413)
     const mediaType = ALLOWED_MEDIA.has(body?.mediaType) ? body.mediaType : 'image/jpeg'
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL,
+        thinking: { type: 'disabled' }, // 즉답 방식 (blok-ai 와 같음)
         max_tokens: 2000,
         messages: [{
           role: 'user',
