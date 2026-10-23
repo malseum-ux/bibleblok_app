@@ -145,8 +145,8 @@ const Map<String, List<StepItem>> dawnStepItems = {
     StepItem(key: 'nation', label: '나라와 이웃', text: '- 나라와 이웃을 위한 기도'),
   ],
   'hymn': [
-    StepItem(key: 'hymnal', label: '찬송가 추천', text: '- 찬송가 1곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호, 제목, 이 본문과 연결되는 이유 2~3줄)'),
-    StepItem(key: 'ccm', label: 'CCM 추천', text: '- CCM 1곡 (제목, 아티스트, 이 본문과 연결되는 이유 2~3줄)'),
+    StepItem(key: 'hymnal', label: '찬송가 추천', text: '- 찬송가 1곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)'),
+    StepItem(key: 'ccm', label: 'CCM 추천', text: '- CCM 1곡 (제목과 아티스트만)'),
   ],
 };
 
