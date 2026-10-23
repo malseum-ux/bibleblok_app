@@ -479,10 +479,31 @@ const BASE_SYSTEM = '모든 내용은 피상적인 요약이나 일반론에 머
 
 // ── 종류별 지시문 조립 ── (반환: { prompt, systemExtra })
 
+// 교재 종류별 부제 — 결과 둘째 줄에 괄호로 붙인다
+const CELL_SUBTITLES = {
+  sharing: '삶으로 나누는 말씀',
+  gospel: '그리스도 안에서',
+  theological: '뿌리에서 열매까지',
+  literary: '이야기 속으로',
+  psychological: '말씀 앞에 나를 내려놓기',
+  communal: '함께 세상으로',
+}
+
+// 6종류 교재 공통 모양 (내용 원칙은 교재마다 다르고, 쓰는 모양은 모두 같게)
+function cellFormat(stepKey) {
+  return `[결과 모양 — 반드시 이 모양으로 쓰세요]
+첫 줄: 본문 내용에 맞게 지은 이 교재의 제목
+둘째 줄: (${CELL_SUBTITLES[stepKey]})
+그 아래 한 줄을 띄우고 교재를 시작하세요. 제목 앞에 다른 말을 쓰지 마세요.
+큰 부분은 "1. 2. 3." 번호와 소제목으로, 그 안의 질문이나 항목은 "1) 2) 3)"으로 쓰세요.
+인도자 해설은 각 부분 끝에 "인도자 해설:"로 시작하는 한 문단으로 쓰세요.
+문단 사이는 빈 줄 하나로 띄우세요.`
+}
+
 function buildCell({ passage, bible, lang, stepKey, customText = '', userKeyword = '', sermonContext = '', memory = '' }) {
   const promptFn = CELL_MATERIAL_PROMPTS[stepKey]
   if (!promptFn) throw new Error('Unknown cell step key: ' + stepKey)
-  let prompt = withCitationPolicy(promptFn(passage, bible), lang)
+  let prompt = withCitationPolicy(promptFn(passage, bible) + '\n\n' + cellFormat(stepKey), lang)
   if (customText) prompt += `\n\n[구성 지시항목 — 아래 항목을 반드시 포함하여 작성하세요]\n${customText}`
   if (sermonContext) {
     prompt += `\n\n[설교 연구 참고 자료]\n아래는 같은 본문으로 작성된 설교 연구 내용입니다. 이 자료를 충분히 반영하여 교재를 작성해 주세요. 설교자의 본문 이해와 신학적 관점, 강조점을 교재 곳곳에 녹여주세요.\n\n${sermonContext}`
