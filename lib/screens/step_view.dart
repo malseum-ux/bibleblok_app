@@ -228,8 +228,19 @@ class _StepViewState extends ConsumerState<StepView> {
       final String full;
       if (tab == 'sermon') {
         final seriesCtx = store.getSeriesContext('sermon', item.category, item.id);
+        // 5단계는 1~4단계, 7·8단계는 6단계 결과를 함께 보낸다 (자르기는 서버에서)
+        const prevKeys = {
+          'message': ['narrative', 'text_study', 'original', 'research'],
+          'deep_questions': ['lesson'],
+          'application': ['lesson'],
+        };
+        final prevSteps = [
+          for (final k in prevKeys[step.key] ?? const <String>[])
+            for (final s in stepsForTab('sermon').where((s) => s.key == k))
+              {'key': s.key, 'label': s.ko, 'text': stripHtml(item.steps[s.index] ?? '').trim()},
+        ].where((s) => s['text']!.isNotEmpty).toList();
         full = await generateSermonStep(step.key, item.passage, item.emphasis, lang, widget.bible, seriesCtx, onChunk,
-            activeItems, effectiveKeyword, customTextOf(selectedCustomKeys, customItems), memory);
+            activeItems, effectiveKeyword, customTextOf(selectedCustomKeys, customItems), memory, prevSteps);
       } else if (tab == 'worship') {
         full = await generateWorshipCombined(item.date, item.season, item.lectionary, lang, widget.bible, stepSelectedItems, onChunk,
             effectiveKeyword, customStepTexts(), memory);

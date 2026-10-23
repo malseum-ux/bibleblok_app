@@ -21,8 +21,8 @@ function withCitationPolicy(prompt, lang) {
 const SERMON_STEP_ITEMS = {
   narrative: [
     { key: 'context', label: '전후 문맥', text: '- 본문의 전후 문맥' },
-    { key: 'position', label: '위치와 역할', text: '- 해당 성경책에서의 위치와 역할' },
     { key: 'structure', label: '서사 구조', text: '- 서사 구조적 의미와 흐름' },
+    { key: 'position', label: '위치와 역할', text: '- 해당 성경책에서의 위치와 역할' },
     { key: 'canonical', label: '정경 신학', text: '- 정경 전체에서의 신학적 위치' },
   ],
   original: [
@@ -33,21 +33,20 @@ const SERMON_STEP_ITEMS = {
     { key: 'meaning', label: '신학적 함의', text: '- 어근과 의미의 신학적 함의' },
   ],
   message: [
-    { key: 'christology', label: '기독론적 관점', text: '- 기독론적 관점: 이 본문이 그리스도를 어떻게 가리키는지, 대표적인 신학자들(칼빈, 루터, 바르트, 라이트 등)과 설교가들이 이 본문을 기독론적으로 어떻게 해석해 왔는지 구체적으로 설명' },
     { key: 'original_audience', label: '최초 청중 메시지', text: '- 최초 청중 메시지: 본문이 원래 청중에게 전달하려 한 메시지' },
-    { key: 'today', label: '오늘날 메시지', text: '- 오늘날 메시지: 오늘날 교회와 신자에게 전하는 메시지' },
+    { key: 'god', label: '하나님 성품', text: '- 하나님의 성품과 사역에 대한 교훈' },
+    { key: 'human', label: '인간 본성', text: '- 인간의 본성과 반응에 대한 교훈' },
+    { key: 'christology', label: '기독론적 관점', text: '- 기독론적 관점: 이 본문이 그리스도를 어떻게 가리키는지, 대표적인 신학자들(칼빈, 루터, 바르트, 라이트 등)과 설교가들이 이 본문을 기독론적으로 어떻게 해석해 왔는지 구체적으로 설명' },
+    { key: 'jesus', label: '예수님의 실천적 모범', text: '- 예수님이 이 본문에서 보여주시는 실천적 모범' },
   ],
   lesson: [
-    { key: 'god', label: '하나님 성품', text: '- 하나님의 성품과 사역에 대한 교훈' },
-    { key: 'jesus', label: '예수님의 실천적 모범', text: '- 예수님이 이 본문에서 보여주시는 실천적 모범' },
-    { key: 'human', label: '인간 본성', text: '- 인간의 본성과 반응에 대한 교훈' },
-    { key: 'lessons', label: '본문의 교훈', text: '- 본문에서 도출할 수 있는 핵심 교훈 5가지 (각 교훈을 간결하게 제목으로 제시하고 설명)' },
+    { key: 'lessons', label: '본문의 교훈', text: '- 본문이 주는 원칙적 교훈 5가지. 각 교훈은 개인, 가정, 교회, 사회 등 삶의 모든 영역에 두루 적용될 수 있는 원칙으로 제시하고, 간결한 제목과 함께 본문 근거와 설명을 쓸 것. 특정 영역에만 해당하는 적용은 8단계(적용)에서 다루므로 여기서는 원칙에 집중할 것' },
   ],
   text_study: [
     { key: 'main_theme', label: '주요 신학적 주제', text: '- 본문의 주요 신학적 주제' },
     { key: 'history', label: '신학적 해석 역사', text: '- 신학적 해석 역사: 교부, 중세, 개혁신학, 근대 주요 신학자들이 이 본문을 어떻게 해석해 왔는지 구체적으로 설명' },
-    { key: 'modern', label: '현대 신학자 해석', text: '- 현대 주요 신학자들의 해석: 대표적인 현대 신학자들이 이 본문을 어떻게 해석하는지 구체적으로 설명' },
     { key: 'rabbi', label: '정통 랍비 해석', text: '- 정통 랍비 해석: 유대교 정통 랍비 전통에서 이 본문(또는 해당 구약 본문)을 어떻게 해석해 왔는지 설명' },
+    { key: 'modern', label: '현대 신학자 해석', text: '- 현대 주요 신학자들의 해석: 대표적인 현대 신학자들이 이 본문을 어떻게 해석하는지 구체적으로 설명' },
   ],
   research: [
     { key: 'literary', label: '문학적 관점', text: '- 문학적 관점: 문학 비평가의 틀로 본문의 장르, 문체, 서사 구조, 수사법이 본문 의미에 어떻게 기여하는지 해석' },
@@ -67,18 +66,16 @@ const SERMON_STEP_ITEMS = {
     { key: 'before_ccm', label: '설교 전 CCM', text: '- 설교 전 CCM 1곡 (제목, 아티스트, 선택 이유)' },
     { key: 'after_hymn', label: '설교 후 찬송가', text: '- 설교 후 찬송가 1곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호, 제목, 선택 이유)' },
     { key: 'after_ccm', label: '설교 후 CCM', text: '- 설교 후 CCM 1곡 (제목, 아티스트, 선택 이유)' },
-    { key: 'explanation', label: '연결 설명', text: '- 각 곡이 본문 메시지와 어떻게 연결되는지, 예배 흐름에서 어떤 역할을 하는지 설명' },
   ],
   application: [
-    { key: 'personal', label: '개인 적용', text: '- 개인 적용: 지금까지의 해설(원어, 역사적 배경, 신학적 의미, 교훈)을 바탕으로 개인 신앙 생활에 구체적으로 어떻게 적용할 수 있는지 제시' },
-    { key: 'community', label: '공동체 적용', text: '- 공동체 적용: 지금까지의 해설을 바탕으로 교회 공동체가 함께 실천하거나 변화해야 할 내용을 구체적으로 제시' },
-    { key: 'social', label: '사회 적용', text: '- 사회 적용: 지금까지의 해설을 바탕으로 사회와 세상을 향해 이 본문이 요구하는 실천을 구체적으로 제시' },
-    { key: 'practical', label: '구체적 실천', text: '- 구체적 실천: 지금까지의 해설에서 도출한 이번 주 바로 실천할 수 있는 구체적 행동 3~5가지 제시' },
+    { key: 'personal', label: '개인 적용', text: '- 개인 적용: 지금까지의 해설을 바탕으로, 개인 신앙생활에서 이번 주부터 바로 실천할 수 있는 구체적 행동으로 제시' },
+    { key: 'community', label: '공동체 적용', text: '- 공동체 적용: 지금까지의 해설을 바탕으로, 교회 공동체가 함께 실천할 수 있는 구체적 행동으로 제시' },
+    { key: 'social', label: '사회 적용', text: '- 사회 적용: 지금까지의 해설을 바탕으로, 사회와 세상 속에서 실천할 수 있는 구체적 행동으로 제시' },
   ],
   deep_questions: [
-    { key: 'inductive', label: '귀납법적 질문', text: '- 귀납법적 질문과 해설: 본문의 구체적 사실과 관찰에서 출발해 교훈을 도출하는 질문 3~5개와 각 질문에 대한 해설' },
-    { key: 'deductive', label: '연역법적 질문', text: '- 연역법적 질문과 해설: 교훈의 핵심 명제에서 출발해 구체적 삶의 상황에 적용하는 질문 3~5개와 각 질문에 대한 해설' },
-    { key: 'dialectical', label: '변증법적 질문', text: '- 변증법적 질문과 해설(정반합): 교훈에 대한 긍정 명제(정)와 그에 맞서는 반론(반), 그 긴장을 통합하는 새로운 이해(합)로 구성된 질문 3~5개와 각 질문에 대한 해설' },
+    { key: 'inductive', label: '귀납법적 질문', text: '- 귀납법적 질문과 해설: 교훈마다 본문의 구체적 사실과 관찰에서 출발해 그 교훈을 도출하는 질문과 해설' },
+    { key: 'deductive', label: '연역법적 질문', text: '- 연역법적 질문과 해설: 교훈마다 그 교훈의 핵심 명제에서 출발해 구체적 삶의 상황에 적용하는 질문과 해설' },
+    { key: 'dialectical', label: '변증법적 질문', text: '- 변증법적 질문과 해설(정반합): 교훈마다 긍정 명제(정)와 그에 맞서는 반론(반), 그 긴장을 통합하는 새로운 이해(합)로 구성된 질문과 해설' },
   ],
 }
 
@@ -419,6 +416,7 @@ ${buildItems(SERMON_STEP_ITEMS.hymns, selectedKeys)}
 `,
   application: (passage, lang, bible, selectedKeys = null) => `
 지금까지의 해설을 종합하여 오늘날 삶에 적용하는 내용을 작성해 주세요.
+각 적용은 막연한 다짐이 아니라 언제, 어디서, 무엇을 할지 드러나는 구체적 실천 내용으로 쓰세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
 본문: ${passage}
@@ -428,7 +426,9 @@ A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세�
 ${buildItems(SERMON_STEP_ITEMS.application, selectedKeys)}
 `,
   deep_questions: (passage, lang, bible, selectedKeys = null) => `
-당신은 설교학 및 성경 교육 전문가입니다. 다음 본문의 교훈을 회중이 스스로 발견하고 깊이 내면화할 수 있도록 세 가지 논리적 방식의 질문과 해설을 작성해 주세요.
+당신은 설교학 및 성경 교육 전문가입니다. 6단계(교훈)에서 제시한 원칙적 교훈 5가지 각각을 회중이 스스로 발견하고 깊이 내면화할 수 있도록, 교훈마다 세 가지 논리적 방식의 질문과 해설을 작성해 주세요.
+교훈별로 묶어 쓰세요: 교훈 제목 → 귀납법적 질문과 해설 → 연역법적 질문과 해설 → 변증법적 질문과 해설.
+6단계 교훈이 아래에 주어지지 않았으면, 먼저 본문의 원칙적 교훈 5가지를 제목으로 짧게 정리한 뒤 같은 방식으로 쓰세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
 본문: ${passage}
@@ -492,9 +492,26 @@ function buildCell({ passage, bible, lang, stepKey, customText = '', userKeyword
   return { prompt: prompt, systemExtra: '' }
 }
 
-function buildSermonStep({ stepKey, passage, emphasis, lang, bible, seriesCtx, selectedItems = null, userKeyword = '', customText = '', memory = '' }) {
+// 앞 단계 결과를 함께 넘기는 단계 — 5단계는 1~4단계 앞부분, 7·8단계는 6단계 교훈 전체
+const PREV_STEPS = {
+  message: { keys: ['narrative', 'text_study', 'original', 'research'], cap: 1500, title: '앞 단계 연구 결과(1~4단계, 각 단계 앞부분)', guide: '위 연구 결과를 바탕으로 메시지를 정리하되, 같은 내용을 그대로 되풀이하지 마세요.' },
+  application: { keys: ['lesson'], cap: 6000, title: '6단계(교훈)에서 제시한 원칙적 교훈', guide: '위 원칙적 교훈을 개인·공동체·사회 각 영역의 구체적 실천으로 옮겨 쓰세요.' },
+  deep_questions: { keys: ['lesson'], cap: 6000, title: '6단계(교훈)에서 제시한 교훈', guide: '위 교훈 5가지 각각에 대해 질문과 해설을 쓰세요.' },
+}
 
-  const prompt = SERMON_STEP_PROMPTS_WITH_EMPHASIS[stepKey]?.(passage, emphasis, lang, bible, selectedItems)
+function prevStepsText(stepKey, prevSteps) {
+  const def = PREV_STEPS[stepKey]
+  if (!def || !Array.isArray(prevSteps)) return ''
+  const parts = prevSteps
+    .filter(s => s && def.keys.includes(s.key) && typeof s.text === 'string' && s.text.trim())
+    .map(s => `(${String(s.label || s.key).slice(0, 30)})\n${s.text.trim().slice(0, def.cap)}`)
+  return parts.length ? `[${def.title}]\n${parts.join('\n\n')}\n\n${def.guide}` : ''
+}
+
+function buildSermonStep({ stepKey, passage, emphasis, lang, bible, seriesCtx, selectedItems = null, userKeyword = '', customText = '', memory = '', prevSteps = null }) {
+
+  const prev = prevStepsText(stepKey, prevSteps)
+  const prompt = (SERMON_STEP_PROMPTS_WITH_EMPHASIS[stepKey]?.(passage, emphasis, lang, bible, selectedItems) || '') + (prev ? `\n\n${prev}` : '')
   let fullPrompt = seriesCtx
     ? prompt + `\n\n${seriesCtx}\n\n[강해설교 연속성 지침]\n- 위 이전 설교들의 본문 흐름과 신학적 주제를 반드시 파악하세요.\n- 이번 본문이 시리즈 전체에서 어떤 위치에 있는지 의식하며 작성하세요.\n- 이전 설교에서 다룬 내용을 반복하지 말고, 자연스럽게 그 위에 쌓아가세요.\n- 회중이 앞 설교의 흐름을 기억하며 이번 말씀을 들을 수 있도록 연결 고리를 살려 주세요.`
     : prompt

@@ -41,7 +41,7 @@ void main() {
       'kind': 'sermonStep',
       'params': {
         'stepKey': 'narrative', 'passage': '롬 1:1', 'emphasis': '', 'lang': 'ko', 'bible': null, 'seriesCtx': '',
-        'selectedItems': ['context'], 'userKeyword': '청년', 'customText': '- 추가', 'memory': '[메모리]',
+        'selectedItems': ['context'], 'userKeyword': '청년', 'customText': '- 추가', 'memory': '[메모리]', 'prevSteps': null,
       },
     });
     expect(bodies.single.containsKey('messages'), isFalse); // 지시문은 보내지 않는다
