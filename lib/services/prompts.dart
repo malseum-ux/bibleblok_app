@@ -140,13 +140,13 @@ const Map<String, List<StepItem>> dawnStepItems = {
     StepItem(key: 'action', label: '실천 적용', text: '- 본문에서 이끌어낸 구체적인 실천적 교훈 (가정/직장/교회/이웃 중 한 영역)'),
   ],
   'prayer_topics': [
-    StepItem(key: 'personal', label: '개인 기도', text: '- 개인 기도 (본문 말씀을 내 삶에 적용하는 기도)'),
-    StepItem(key: 'church', label: '교회 기도', text: '- 교회 공동체를 위한 기도'),
-    StepItem(key: 'nation', label: '나라와 이웃', text: '- 나라와 이웃을 위한 기도'),
+    StepItem(key: 'personal', label: '개인 기도', text: '- 개인을 위한 기도 제목 (본문 말씀을 내 삶에 적용하는 내용)'),
+    StepItem(key: 'church', label: '교회 기도', text: '- 교회 공동체를 위한 기도 제목'),
+    StepItem(key: 'nation', label: '나라와 이웃', text: '- 나라와 이웃을 위한 기도 제목'),
   ],
   'hymn': [
-    StepItem(key: 'hymnal', label: '찬송가 추천', text: '- 찬송가 1곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)'),
-    StepItem(key: 'ccm', label: 'CCM 추천', text: '- CCM 1곡 (제목과 아티스트만)'),
+    StepItem(key: 'hymnal', label: '찬송가 추천', text: '- 찬송가 2곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)'),
+    StepItem(key: 'ccm', label: 'CCM 추천', text: '- CCM 2곡 (제목과 아티스트만)'),
   ],
 };
 

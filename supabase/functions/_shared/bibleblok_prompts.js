@@ -139,13 +139,13 @@ const DAWN_STEP_ITEMS = {
     { key: 'action', label: '실천 적용', text: '- 본문에서 이끌어낸 구체적인 실천적 교훈 (가정/직장/교회/이웃 중 한 영역)' },
   ],
   prayer_topics: [
-    { key: 'personal', label: '개인 기도', text: '- 개인 기도 (본문 말씀을 내 삶에 적용하는 기도)' },
-    { key: 'church', label: '교회 기도', text: '- 교회 공동체를 위한 기도' },
-    { key: 'nation', label: '나라와 이웃', text: '- 나라와 이웃을 위한 기도' },
+    { key: 'personal', label: '개인 기도', text: '- 개인을 위한 기도 제목 (본문 말씀을 내 삶에 적용하는 내용)' },
+    { key: 'church', label: '교회 기도', text: '- 교회 공동체를 위한 기도 제목' },
+    { key: 'nation', label: '나라와 이웃', text: '- 나라와 이웃을 위한 기도 제목' },
   ],
   hymn: [
-    { key: 'hymnal', label: '찬송가 추천', text: '- 찬송가 1곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)' },
-    { key: 'ccm', label: 'CCM 추천', text: '- CCM 1곡 (제목과 아티스트만)' },
+    { key: 'hymnal', label: '찬송가 추천', text: '- 찬송가 2곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)' },
+    { key: 'ccm', label: 'CCM 추천', text: '- CCM 2곡 (제목과 아티스트만)' },
   ],
 }
 
@@ -693,7 +693,7 @@ ${sel('application')}
 
 [4. 기도 제목]
 ${sel('prayer_topics')}
-- 각 기도는 4~6문장, 성도들이 마음으로 따라할 수 있는 언어로
+- 기도문이 아니라 기도 제목으로 쓰세요. 영역마다 2~3개, 각 제목은 "~하도록", "~하게 하소서"처럼 끝나는 한 문장으로 짧게 쓰세요.
 
 [찬송] (번호 없이 제목만)
 ${sel('hymn')}
