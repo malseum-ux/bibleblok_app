@@ -141,8 +141,9 @@ const Map<String, List<StepItem>> dawnStepItems = {
   ],
   'prayer_topics': [
     StepItem(key: 'personal', label: '개인 기도', text: '- 개인을 위한 기도 제목 (본문 말씀을 내 삶에 적용하는 내용)'),
+    StepItem(key: 'family', label: '가정 기도', text: '- 가정을 위한 기도 제목'),
     StepItem(key: 'church', label: '교회 기도', text: '- 교회 공동체를 위한 기도 제목'),
-    StepItem(key: 'nation', label: '나라와 이웃', text: '- 나라와 이웃을 위한 기도 제목'),
+    StepItem(key: 'nation', label: '나라와 민족', text: '- 나라와 민족을 위한 기도 제목'),
   ],
   'hymn': [
     StepItem(key: 'hymnal', label: '찬송가 추천', text: '- 찬송가 2곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)'),
