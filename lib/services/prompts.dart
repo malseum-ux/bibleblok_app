@@ -101,16 +101,16 @@ const Map<String, List<StepItem>> worshipStepItems = {
     StepItem(key: 'full', label: '교독문 전문', text: '- 선택한 교독문 전문 (인도자/회중 구분하여 작성)'),
   ],
   'opening_hymns': [
-    StepItem(key: 'hymnal', label: '찬송가', text: '- 찬송가에서 예배를 여는 곡 1~2곡 추천 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호, 제목, 선택 이유)'),
-    StepItem(key: 'ccm', label: 'CCM', text: '- 예배를 여는 CCM 1~2곡 추천 (제목, 아티스트, 선택 이유)'),
+    StepItem(key: 'hymnal', label: '찬송가', text: '- 찬송가에서 예배를 여는 곡 1~2곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)'),
+    StepItem(key: 'ccm', label: 'CCM', text: '- 예배를 여는 CCM 1~2곡 (제목과 아티스트만)'),
   ],
   'pre_sermon_hymns': [
-    StepItem(key: 'hymnal', label: '찬송가', text: '- 찬송가에서 설교 전 곡 1~2곡 추천 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호, 제목, 선택 이유)'),
-    StepItem(key: 'ccm', label: 'CCM', text: '- 설교 전 CCM 1~2곡 추천 (제목, 아티스트, 선택 이유)'),
+    StepItem(key: 'hymnal', label: '찬송가', text: '- 찬송가에서 설교 전 곡 1~2곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)'),
+    StepItem(key: 'ccm', label: 'CCM', text: '- 설교 전 CCM 1~2곡 (제목과 아티스트만)'),
   ],
   'post_sermon_hymns': [
-    StepItem(key: 'hymnal', label: '찬송가', text: '- 찬송가에서 설교 후 응답/결단 곡 1~2곡 추천 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호, 제목, 선택 이유)'),
-    StepItem(key: 'ccm', label: 'CCM', text: '- 설교 후 응답/결단을 위한 CCM 1~2곡 추천 (제목, 아티스트, 선택 이유)'),
+    StepItem(key: 'hymnal', label: '찬송가', text: '- 찬송가에서 설교 후 응답/결단 곡 1~2곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호와 제목만)'),
+    StepItem(key: 'ccm', label: 'CCM', text: '- 설교 후 응답/결단을 위한 CCM 1~2곡 (제목과 아티스트만)'),
   ],
   'benediction': [],
   'sending': [
