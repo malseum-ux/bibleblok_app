@@ -1,4 +1,4 @@
-// 설교 계획 — 일반 달력(일~토 7칸). 주일 칸에 교회력 절기·주일설교 본문·연구/초안·예배인도·교재작성, 평일 칸에 새벽설교
+// 설교 달력 — 일반 달력(일~토 7칸). 주일 칸에 교회력 절기·주일설교 본문·연구/초안·예배인도·교재작성, 평일 칸에 새벽설교
 // 날짜 칸을 누르면 그날 설교로(없으면 새로): 주일은 주일설교, 평일은 새벽설교
 // 따로 저장하는 것은 없다: 이미 있는 설교의 날짜로 채운다 (웹 components/PlanView.jsx 와 같은 화면)
 import 'package:flutter/material.dart';
@@ -186,7 +186,7 @@ class _PlanViewState extends State<PlanView> {
 
     Widget dot(Color color) => Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle));
 
-    Widget cell(DateTime d) {
+    Widget cell(DateTime d, {bool lastCol = false, bool lastRow = false}) {
       final date = _ymd(d);
       final inMonth = d.month == month;
       final isSunday = d.weekday == DateTime.sunday;
@@ -194,7 +194,7 @@ class _PlanViewState extends State<PlanView> {
       final season = isSunday ? getChurchSeason(date) : '';
       final color = isSunday ? getSeasonColor(season) : null;
       final body = Container(
-        padding: isMobile ? const EdgeInsets.all(4) : const EdgeInsets.fromLTRB(8, 4, 8, 6),
+        padding: isMobile ? const EdgeInsets.all(4) : const EdgeInsets.fromLTRB(10, 6, 10, 8),
         decoration: BoxDecoration(
           color: isMobile && picked == date
               ? c.accentLight
@@ -203,8 +203,8 @@ class _PlanViewState extends State<PlanView> {
                   : c.bgSidebar,
           border: Border(
             top: BorderSide(color: color?.color ?? Colors.transparent, width: 3),
-            right: BorderSide(color: c.border),
-            bottom: BorderSide(color: c.border),
+            right: lastCol ? BorderSide.none : BorderSide(color: c.border),
+            bottom: lastRow ? BorderSide.none : BorderSide(color: c.border),
           ),
         ),
         child: Opacity(
@@ -258,7 +258,7 @@ class _PlanViewState extends State<PlanView> {
       for (var r = 0; r < rows; r++)
         Builder(builder: (_) {
           final row = Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            for (var i = 0; i < 7; i++) Expanded(child: cell(days[r * 7 + i])),
+            for (var i = 0; i < 7; i++) Expanded(child: cell(days[r * 7 + i], lastCol: i == 6, lastRow: r == rows - 1)),
           ]);
           return isMobile ? SizedBox(height: 56, child: row) : Expanded(child: row);
         }),
@@ -272,7 +272,7 @@ class _PlanViewState extends State<PlanView> {
         behavior: HitTestBehavior.opaque,
         onTap: () => go(picked, isSunday),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Text.rich(
               TextSpan(children: [
@@ -297,44 +297,54 @@ class _PlanViewState extends State<PlanView> {
       );
     }
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
-        child: Row(children: [
-          navBtn('‹', () => _move(-1)),
-          const SizedBox(width: 8),
-          ConstrainedBox(
-            constraints: BoxConstraints(minWidth: isMobile ? 0 : 104),
-            child: Text(ko ? '$year년 $month월' : '$year. $month',
-                textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: c.textHeading)),
-          ),
-          const SizedBox(width: 8),
-          navBtn('›', () => _move(1)),
-          const SizedBox(width: 8),
-          navBtn(ko ? '오늘' : 'Today', _goToday),
-        ]),
-      ),
-      Container(
-        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
-        child: Row(children: [
-          for (var i = 0; i < 7; i++)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Text(dayNames[i],
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: i == 0 ? _red : c.textMuted)),
-              ),
+    // 달력 상자 — 둥근 테두리 안에 요일 줄과 날짜 칸
+    final dayNameRow = Container(
+      decoration: BoxDecoration(color: c.bgSidebar, border: Border(bottom: BorderSide(color: c.border))),
+      child: Row(children: [
+        for (var i = 0; i < 7; i++)
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: isMobile ? 4 : 10, vertical: isMobile ? 6 : 8),
+              child: Text(dayNames[i],
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: i == 0 ? _red : c.textMuted)),
             ),
-        ]),
-      ),
-      if (isMobile) ...[
-        grid,
-        Container(height: 1, color: c.border),
-        Expanded(child: pickedPanel()),
-      ] else
-        Expanded(child: grid),
-    ]);
+          ),
+      ]),
+    );
+    final box = Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(color: c.bg, border: Border.all(color: c.border), borderRadius: BorderRadius.circular(8)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: isMobile ? MainAxisSize.min : MainAxisSize.max, children: [
+        dayNameRow,
+        if (isMobile) grid else Expanded(child: grid),
+      ]),
+    );
+
+    return Padding(
+      padding: isMobile ? const EdgeInsets.fromLTRB(8, 0, 8, 8) : const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SizedBox(
+          height: 56,
+          child: Row(children: [
+            navBtn('‹', () => _move(-1)),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: BoxConstraints(minWidth: isMobile ? 0 : 104),
+              child: Text(ko ? '$year년 $month월' : '$year. $month',
+                  textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: c.textHeading)),
+            ),
+            const SizedBox(width: 8),
+            navBtn('›', () => _move(1)),
+            const SizedBox(width: 8),
+            navBtn(ko ? '오늘' : 'Today', _goToday),
+          ]),
+        ),
+        if (isMobile) ...[
+          box,
+          Expanded(child: pickedPanel()),
+        ] else
+          Expanded(child: box),
+      ]),
+    );
   }
 }

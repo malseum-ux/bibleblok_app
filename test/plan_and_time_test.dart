@@ -60,7 +60,7 @@ void main() {
     final sunday = DateTime(now.year, now.month, now.day - now.weekday % 7);
     final item = await store.createItem('sermon', {'date': _ymd(sunday), 'title': '아브라함의 믿음', 'passage': '창 12:1-4'}, '');
     await store.saveStep(item, 0, '서사 연구');
-    await tester.tap(find.text('설교 계획'));
+    await tester.tap(find.text('설교 달력'));
     await tester.pumpAndSettle();
     expect(find.byType(PlanView), findsOneWidget);
     expect(find.text('창 12:1-4'), findsOneWidget);
@@ -73,7 +73,7 @@ void main() {
 
   testWidgets('설교 계획 달력: 빈 주일 칸을 누르면 그 날짜로 주일설교가 만들어진다', (tester) async {
     final store = await _pumpHome(tester);
-    await tester.tap(find.text('설교 계획'));
+    await tester.tap(find.text('설교 달력'));
     await tester.pumpAndSettle();
     final first = DateTime(DateTime.now().year, DateTime.now().month, 1);
     final sunday = DateTime(first.year, first.month, 1 + (7 - first.weekday % 7) % 7);
@@ -92,7 +92,7 @@ void main() {
     final cellDate = DateTime(monday.year, monday.month, monday.day - 1); // 그 앞 주일
     await store.createItem('worship', {'date': _ymd(cellDate)}, '');
     await store.createItem('cell', {'date': _ymd(cellDate)}, '');
-    await tester.tap(find.text('설교 계획'));
+    await tester.tap(find.text('설교 달력'));
     await tester.pumpAndSettle();
     expect(find.descendant(of: find.byType(PlanView), matching: find.text('예배인도')), findsOneWidget);
     expect(find.text('교재작성 O'), findsOneWidget);
@@ -101,7 +101,7 @@ void main() {
     final created = store.items['dawn']!.single;
     expect(created.date, _ymd(monday));
     expect(store.items['sermon']!, isEmpty);
-    await tester.tap(find.text('설교 계획'));
+    await tester.tap(find.text('설교 달력'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('plan-${_ymd(monday)}')));
     await tester.pumpAndSettle();
@@ -115,7 +115,7 @@ void main() {
     final now = DateTime.now();
     final sunday = DateTime(now.year, now.month, now.day - now.weekday % 7);
     await store.createItem('sermon', {'date': _ymd(sunday), 'passage': '창 12:1-4'}, '');
-    await tester.tap(find.text('설교 계획'));
+    await tester.tap(find.text('설교 달력'));
     await tester.pumpAndSettle();
     expect(find.text('창 12:1-4'), findsOneWidget);
     expect(find.text('눌러서 주일설교로'), findsNothing); // 휴대폰 펼침 없음
@@ -126,7 +126,7 @@ void main() {
     final item = await store.createItem('sermon', {'date': '2026-10-18', 'title': '시험 설교'}, '');
     item.draft = '<p>${'가' * 600}</p>';
     await store.saveItem(item);
-    await tester.tap(find.text('설교 계획'));
+    await tester.tap(find.text('설교 달력'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('설교작성'));
     await tester.pumpAndSettle();

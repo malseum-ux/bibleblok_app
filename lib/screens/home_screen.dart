@@ -229,7 +229,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 900;
     final showSidebar = sidebarVisible ?? !isMobile;
-    // '설교 계획'은 화면 탭이라 자료(항목·폴더)가 없다
+    // '설교 달력'은 화면 탭이라 자료(항목·폴더)가 없다
     final items = tab == 'plan' ? const <Item>[] : s.items[tab]!;
     Item? selectedItem;
     if (selectedId != null) {
@@ -379,7 +379,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
                       textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                     ),
-                    child: Text(t == 'plan' ? (lang == 'en' ? 'Plan' : '설교 계획') : tabLabel(t, lang)),
+                    child: Text(t == 'plan' ? (lang == 'en' ? 'Calendar' : '설교 달력') : tabLabel(t, lang)),
                   ),
                 ),
             ]),
@@ -455,7 +455,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _main(BuildContext context, String lang, bool isMobile, Item? selectedItem, AppSettings settings) {
     final c = context.c;
-    // 설교 계획 달력 — 설교를 누르면 그 설교로, 빈 주일·평일을 누르면 그 날짜로 새 설교·새벽설교
+    // 설교 달력 — 설교를 누르면 그 설교로, 빈 주일·평일을 누르면 그 날짜로 새 설교·새벽설교
     if (tab == 'plan') {
       return PlanView(
         store: store,
