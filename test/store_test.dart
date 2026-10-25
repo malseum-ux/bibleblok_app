@@ -18,16 +18,16 @@ void main() {
 
   test('설교를 만들면 "날짜 제목.json" 파일이 생기고, 제목을 바꾸면 파일 이름도 바뀐다', () async {
     final item = await store.createItem('sermon', {'date': '2026-09-21', 'title': '아브라함의 부르심', 'passage': '창 12:1-9'}, '');
-    expect(fs.files.keys, ['설교작성/2026-09-21 아브라함의 부르심.json']);
+    expect(fs.files.keys, ['설교작성/아브라함의 부르심.json']);
     item.title = '믿음의 조상';
     await store.saveItem(item);
-    expect(fs.files.keys, ['설교작성/2026-09-21 믿음의 조상.json']);
+    expect(fs.files.keys, ['설교작성/믿음의 조상.json']);
   });
 
   test('같은 이름이면 (2) 를 붙인다', () async {
     await store.createItem('sermon', {'date': '2026-09-21', 'title': '같은 제목'}, '');
     await store.createItem('sermon', {'date': '2026-09-21', 'title': '같은 제목'}, '');
-    expect(fs.files.keys.toSet(), {'설교작성/2026-09-21 같은 제목.json', '설교작성/2026-09-21 같은 제목 (2).json'});
+    expect(fs.files.keys.toSet(), {'설교작성/같은 제목.json', '설교작성/같은 제목 (2).json'});
   });
 
   test('다시 불러와도 내용·폴더가 그대로다', () async {
@@ -46,7 +46,7 @@ void main() {
     await store.createFolder('sermon', '', '강해');
     final item = await store.createItem('sermon', {'date': '2026-09-21', 'title': 'A'}, '');
     await store.moveItem(item, '강해');
-    expect(fs.files.keys, ['설교작성/강해/2026-09-21 A.json']);
+    expect(fs.files.keys, ['설교작성/강해/A.json']);
     expect(item.folder, '강해');
   });
 
@@ -56,7 +56,7 @@ void main() {
     await store.createItem('sermon', {'date': '2026-09-21', 'title': 'A'}, '창세기/1부');
     await store.renameFolder('sermon', '창세기', '창세기 강해');
     expect(store.folders['sermon'], ['창세기 강해', '창세기 강해/1부']);
-    expect(fs.files.keys, ['설교작성/창세기 강해/1부/2026-09-21 A.json']);
+    expect(fs.files.keys, ['설교작성/창세기 강해/1부/A.json']);
     expect(fs.dirs.any((d) => d == '설교작성/창세기'), isFalse);
   });
 
@@ -66,7 +66,7 @@ void main() {
     await store.createItem('sermon', {'date': '2026-09-21', 'title': 'x'}, 'A');
     await store.moveFolder('sermon', 'A', 'B');
     expect(store.folders['sermon'], ['B', 'B/A']);
-    expect(fs.files.keys, ['설교작성/B/A/2026-09-21 x.json']);
+    expect(fs.files.keys, ['설교작성/B/A/x.json']);
     await store.moveFolder('sermon', 'B', 'B/A');
     expect(store.folders['sermon'], ['B', 'B/A']);
   });
@@ -79,7 +79,7 @@ void main() {
     await store.createItem('sermon', {'date': '2026-09-22', 'title': 'in C'}, 'A/B/C');
     await store.deleteFolder('sermon', 'A');
     expect(store.folders['sermon'], ['B', 'B/C']);
-    expect(fs.files.keys.toSet(), {'설교작성/2026-09-21 in A.json', '설교작성/B/C/2026-09-22 in C.json'});
+    expect(fs.files.keys.toSet(), {'설교작성/in A.json', '설교작성/B/C/in C.json'});
   });
 
   test('웹 백업 파일을 불러오면 폴더 구조·단계 내용·지시어가 옮겨진다', () async {
@@ -111,7 +111,7 @@ void main() {
     final added = await store.importBackup(backup);
     expect(added, 2);
     expect(store.folders['sermon'], ['창세기 강해', '창세기 강해/1부']);
-    expect(fs.files.containsKey('설교작성/창세기 강해/1부/2026-09-01 태초에.json'), isTrue);
+    expect(fs.files.containsKey('설교작성/창세기 강해/1부/태초에.json'), isTrue);
     expect(fs.files.containsKey('교재작성/요 8 1-11.json'), isTrue);
     final s = store.items['sermon']!.single;
     expect(s.steps[4], '메시지');

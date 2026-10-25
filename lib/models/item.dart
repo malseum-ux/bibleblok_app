@@ -110,12 +110,13 @@ class Item {
 
   static String? _nonEmpty(String? v) => (v == null || v.trim().isEmpty) ? null : v;
 
-  /// 저장 파일 이름 (확장자 포함) — "날짜 제목.json"
+  /// 저장 파일 이름 (확장자 포함) — "제목.json", 예배인도만 "날짜 예배인도.json"
   String preferredFileName() {
     final name = tab == 'worship'
         ? '예배인도'
         : (_nonEmpty(title) ?? _nonEmpty(passage) ?? '제목 없음');
-    final base = [if (_nonEmpty(date) != null) date!, name].join(' ');
+    // 파일 이름은 이름만 (날짜는 파일 안 정보) — 예배인도는 이름이 늘 같아 날짜를 앞에 붙인다
+    final base = [if (tab == 'worship' && _nonEmpty(date) != null) date!, name].join(' ');
     var safe = base.replaceAll(RegExp(r'[\\/:*?"<>|\n\r\t]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
     if (safe.startsWith('.')) safe = safe.substring(1);
     if (safe.length > 80) safe = safe.substring(0, 80).trim();
