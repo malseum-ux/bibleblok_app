@@ -1,6 +1,7 @@
 // 왼쪽 목록 — 웹 Sidebar.jsx 와 같은 배치·동작
 // 폴더는 경로 문자열('창세기 강해/1부')로 구분한다 (저장 폴더의 실제 폴더와 같음)
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
 import '../models/item.dart';
@@ -79,7 +80,7 @@ class _SidebarState extends State<Sidebar> {
   String? movingItemId;
   String? editingFolder;
   final editCtrl = TextEditingController();
-  String sortMode = 'date-desc'; // date-desc | date-asc | name-asc
+  String sortMode = 'date-desc'; // date-desc | date-asc | name-asc — 탭마다 따로 기억 (SharedPreferences)
   bool dragging = false;
   String? dropTarget; // 폴더 경로, '' = 루트, null = 없음
 
@@ -97,9 +98,36 @@ class _SidebarState extends State<Sidebar> {
     return out;
   }
 
-  void cycleSort() => setState(() {
-        sortMode = sortMode == 'date-desc' ? 'date-asc' : (sortMode == 'date-asc' ? 'name-asc' : 'date-desc');
-      });
+  static const _sortModes = ['date-desc', 'date-asc', 'name-asc'];
+  String get _sortKey => 'bibleblok-sort-${widget.tab}';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSort();
+  }
+
+  @override
+  void didUpdateWidget(covariant Sidebar old) {
+    super.didUpdateWidget(old);
+    if (old.tab != widget.tab) _loadSort();
+  }
+
+  /// 이 탭에서 마지막으로 고른 정렬 불러오기
+  Future<void> _loadSort() async {
+    final tab = widget.tab;
+    final saved = (await SharedPreferences.getInstance()).getString('bibleblok-sort-$tab');
+    if (!mounted || widget.tab != tab) return;
+    setState(() => sortMode = _sortModes.contains(saved) ? saved! : 'date-desc');
+  }
+
+  void cycleSort() {
+    setState(() {
+      sortMode = sortMode == 'date-desc' ? 'date-asc' : (sortMode == 'date-asc' ? 'name-asc' : 'date-desc');
+    });
+    final key = _sortKey, mode = sortMode;
+    SharedPreferences.getInstance().then((p) => p.setString(key, mode));
+  }
 
   String get sortLabel => en
       ? (sortMode == 'date-desc' ? 'Date↓' : sortMode == 'date-asc' ? 'Date↑' : 'Name')

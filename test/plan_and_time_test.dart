@@ -121,6 +121,23 @@ void main() {
     expect(find.text('눌러서 주일설교로'), findsNothing); // 휴대폰 펼침 없음
   });
 
+  testWidgets('목록 정렬: 고른 정렬이 탭마다 따로 저장된다', (tester) async {
+    await _pumpHome(tester);
+    await tester.tap(find.text('설교작성'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('날짜↓'));
+    await tester.pumpAndSettle();
+    expect(find.text('날짜↑'), findsOneWidget);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('bibleblok-sort-sermon'), 'date-asc');
+    await tester.tap(find.text('예배인도'));
+    await tester.pumpAndSettle();
+    expect(find.text('날짜↓'), findsOneWidget); // 다른 탭은 기본값
+    await tester.tap(find.text('설교작성'));
+    await tester.pumpAndSettle();
+    expect(find.text('날짜↑'), findsOneWidget); // 돌아오면 기억한 정렬
+  });
+
   testWidgets('설교 시간 버튼: 초안이 있으면 "약 N분", 누르면 꺼진다', (tester) async {
     final store = await _pumpHome(tester);
     final item = await store.createItem('sermon', {'date': '2026-10-18', 'title': '시험 설교'}, '');
