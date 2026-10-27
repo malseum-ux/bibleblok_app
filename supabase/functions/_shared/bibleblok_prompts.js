@@ -154,9 +154,6 @@ const CELL_MATERIAL_PROMPTS = {
   sharing: (passage, bible) => `당신은 소그룹 나눔 교재 전문가입니다.
 아래 성경 본문으로 "나눔 교재 — 삶으로 나누는 말씀"을 작성해 주세요.
 
-본문: ${passage}
-번역본: ${bible || '개역개정성경'}
-
 [나눔 교재란]
 신학 지식이 없어도 누구나 편하게 참여할 수 있는 소그룹 나눔 교재입니다.
 본문을 분석하는 것이 목적이 아닙니다.
@@ -181,14 +178,15 @@ const CELL_MATERIAL_PROMPTS = {
 각 섹션마다 인도자를 위한 해설을 작성하세요.
 해설은 반드시 목적·이유·진행 팁을 포함하세요.
 이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.
-해설은 별도 구분선 없이 각 섹션 직후에 작성하세요.`,
+해설은 별도 구분선 없이 각 섹션 직후에 작성하세요.
+
+[이번 교재]
+본문: ${passage}
+번역본: ${bible || '개역개정성경'}`,
 
   theological: (passage, bible) => `당신은 소그룹 나눔 교재 전문가이자 성경 신학자입니다.
 아래 성경 본문으로 "신학적 교재 — 뿌리에서 열매까지"를 작성해 주세요.
 A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
-
-본문: ${passage}
-번역본: ${bible || '개역개정성경'}
 
 [신학적 교재란]
 본문을 신학적으로 깊이 탐구하되, 소그룹이 함께 발견하는 구조입니다.
@@ -204,14 +202,15 @@ A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
 각 섹션마다 인도자를 위한 해설을 작성하세요.
 해설은 반드시 목적·이유·진행 팁을 포함하세요.
 이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.
-신학적 대화 섹션 해설에는 반드시 위험한 방향(이단적 결론, 극단적 해석)을 명시하세요.`,
+신학적 대화 섹션 해설에는 반드시 위험한 방향(이단적 결론, 극단적 해석)을 명시하세요.
+
+[이번 교재]
+본문: ${passage}
+번역본: ${bible || '개역개정성경'}`,
 
   gospel: (passage, bible) => `당신은 소그룹 나눔 교재 전문가이자 복음 중심 설교자입니다.
 아래 성경 본문으로 "복음적 교재 — 그리스도 안에서"를 작성해 주세요.
 A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
-
-본문: ${passage}
-번역본: ${bible || '개역개정성경'}
 
 [복음적 교재란]
 이 본문이 어떻게 예수 그리스도를 가리키는지 발견하는 교재입니다.
@@ -235,14 +234,15 @@ A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
 각 섹션마다 인도자를 위한 해설을 작성하세요.
 해설은 반드시 목적·이유·진행 팁을 포함하세요.
 이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.
-율법적 방향으로 흐를 수 있는 위험을 반드시 명시하세요.`,
+율법적 방향으로 흐를 수 있는 위험을 반드시 명시하세요.
+
+[이번 교재]
+본문: ${passage}
+번역본: ${bible || '개역개정성경'}`,
 
   literary: (passage, bible) => `당신은 소그룹 나눔 교재 전문가이자 문학 비평가입니다.
 아래 성경 본문으로 "문학적 교재 — 이야기 속으로"를 작성해 주세요.
 A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
-
-본문: ${passage}
-번역본: ${bible || '개역개정성경'}
 
 [문학적 교재란]
 성경을 문학 작품으로 읽습니다. 문학적 기법과 서사 구조를 탐구하고,
@@ -258,14 +258,15 @@ A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
 [인도자 해설 작성 기준]
 각 섹션마다 인도자를 위한 해설을 작성하세요.
 해설은 반드시 목적·이유·진행 팁을 포함하세요.
-이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.`,
+이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.
+
+[이번 교재]
+본문: ${passage}
+번역본: ${bible || '개역개정성경'}`,
 
   psychological: (passage, bible) => `당신은 소그룹 나눔 교재 전문가이자 심리학적 통찰을 가진 목회자입니다.
 아래 성경 본문으로 "심리학적 교재 — 말씀 앞에 나를 내려놓기"를 작성해 주세요.
 A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
-
-본문: ${passage}
-번역본: ${bible || '개역개정성경'}
 
 [심리학적 교재란]
 심리학은 도구입니다. 말씀을 섬기기 위한 도구이지, 말씀을 대체하지 않습니다.
@@ -284,14 +285,15 @@ A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
 [인도자 해설 작성 기준]
 각 섹션마다 인도자를 위한 해설을 작성하세요.
 해설은 반드시 목적·이유·진행 팁을 포함하세요.
-이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.`,
+이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.
+
+[이번 교재]
+본문: ${passage}
+번역본: ${bible || '개역개정성경'}`,
 
   communal: (passage, bible) => `당신은 소그룹 나눔 교재 전문가이자 사회학적 통찰을 가진 목회자입니다.
 아래 성경 본문으로 "공동체적 교재 — 함께 세상으로"를 작성해 주세요.
 A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
-
-본문: ${passage}
-번역본: ${bible || '개역개정성경'}
 
 [공동체적 교재란]
 사회학은 도구입니다. 말씀을 섬기기 위한 도구이지, 말씀을 대체하지 않습니다.
@@ -310,7 +312,11 @@ A4 3~4매 분량(약 3,000~4,500자)으로 작성해 주세요.
 각 섹션마다 인도자를 위한 해설을 작성하세요.
 해설은 반드시 목적·이유·진행 팁을 포함하세요.
 이 본문에서만 일어날 수 있는 반응과 상황을 예상해서 쓰세요.
-정치적으로 민감한 방향으로 흐를 수 있는 위험을 반드시 명시하세요.`,
+정치적으로 민감한 방향으로 흐를 수 있는 위험을 반드시 명시하세요.
+
+[이번 교재]
+본문: ${passage}
+번역본: ${bible || '개역개정성경'}`,
 }
 
 function buildItems(items, selectedKeys) {
@@ -323,23 +329,25 @@ const SERMON_STEP_PROMPTS = {
 당신은 성경 신학자입니다. 다음 성경 본문에 대해 서사적 관점에서 해설해 주세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
+다음을 포함하세요:
+${buildItems(SERMON_STEP_ITEMS.narrative, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-다음을 포함하세요:
-${buildItems(SERMON_STEP_ITEMS.narrative, selectedKeys)}
 `,
   text_study: (passage, lang, bible, selectedKeys = null) => `
 당신은 성경 신학 전문가입니다. 다음 본문을 신학적으로 깊이 연구해 주세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
+다음을 포함하세요:
+${buildItems(SERMON_STEP_ITEMS.text_study, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-다음을 포함하세요:
-${buildItems(SERMON_STEP_ITEMS.text_study, selectedKeys)}
 `,
   original: (passage, lang, bible, selectedKeys = null) => `
 당신은 성경 원어 전문가입니다. 다음 본문을 원어로 해설해 주세요.
@@ -350,32 +358,35 @@ A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세�
 예시) 히브리어: אֱלֹהִים (엘로힘), 헬라어: λόγος (로고스)
 원어 문자 없이 한글 설명만 쓰지 마세요.
 
+다음을 포함하세요:
+${buildItems(SERMON_STEP_ITEMS.original, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-다음을 포함하세요:
-${buildItems(SERMON_STEP_ITEMS.original, selectedKeys)}
 `,
   message: (passage, lang, bible, selectedKeys = null) => `
 앞서 분석한 내용을 바탕으로 이 본문이 전하는 핵심 메시지를 정리해 주세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
+${buildItems(SERMON_STEP_ITEMS.message, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-${buildItems(SERMON_STEP_ITEMS.message, selectedKeys)}
 `,
   lesson: (passage, lang, bible, selectedKeys = null) => `
 이 본문에서 배울 수 있는 신앙적 교훈을 정리해 주세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
+${buildItems(SERMON_STEP_ITEMS.lesson, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-${buildItems(SERMON_STEP_ITEMS.lesson, selectedKeys)}
 `,
   research: (passage, lang, bible, selectedKeys = null) => `
 이 본문을 다양한 학문적 관점으로 확장 연구해 주세요.
@@ -383,48 +394,52 @@ A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세�
 
 각 관점은 해당 분야 전문가(문학 비평가, 역사가, 철학자, 사회학자, 심리학자)가 실제로 사용하는 분석 틀과 개념을 활용하여, 그 관점에서 본문이 어떤 의미를 갖는지 해석하세요. 단순한 배경 나열이 아니라 전문가적 해석이어야 합니다.
 
+다음 관점을 포함하세요:
+${buildItems(SERMON_STEP_ITEMS.research, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-다음 관점을 포함하세요:
-${buildItems(SERMON_STEP_ITEMS.research, selectedKeys)}
 `,
   illustration: (passage, lang, bible, selectedKeys = null) => `
 당신은 설교 전문가입니다. 다음 본문의 메시지를 효과적으로 전달할 수 있는 예화를 제시해 주세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
+다음을 포함하세요:
+${buildItems(SERMON_STEP_ITEMS.illustration, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-다음을 포함하세요:
-${buildItems(SERMON_STEP_ITEMS.illustration, selectedKeys)}
 `,
   hymns: (passage, lang, bible, selectedKeys = null) => `
 당신은 교회 음악 전문가입니다. 다음 설교 본문의 메시지에 어울리는 찬송과 CCM을 선별해 주세요.
-
-본문: ${passage}
-응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
-기본 번역본: ${bible || '개역개정성경'}
-찬송가 기준: 대한찬송가공회 2006년 발행 찬송가 (총 645장)
 
 [찬송가 목록]
 찬송은 반드시 시스템 지시에 있는 '대한찬송가공회 찬송가 전체 목록'의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
 
 다음을 포함하세요:
 ${buildItems(SERMON_STEP_ITEMS.hymns, selectedKeys)}
+
+[이번 본문]
+본문: ${passage}
+응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
+기본 번역본: ${bible || '개역개정성경'}
+찬송가 기준: 대한찬송가공회 2006년 발행 찬송가 (총 645장)
 `,
   application: (passage, lang, bible, selectedKeys = null) => `
 지금까지의 해설을 종합하여 오늘날 삶에 적용하는 내용을 작성해 주세요.
 각 적용은 막연한 다짐이 아니라 언제, 어디서, 무엇을 할지 드러나는 구체적 실천 내용으로 쓰세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
+${buildItems(SERMON_STEP_ITEMS.application, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-${buildItems(SERMON_STEP_ITEMS.application, selectedKeys)}
 `,
   deep_questions: (passage, lang, bible, selectedKeys = null) => `
 당신은 설교학 및 성경 교육 전문가입니다. 6단계(교훈)에서 제시한 원칙적 교훈 5가지 각각을 회중이 스스로 발견하고 깊이 내면화할 수 있도록, 교훈마다 세 가지 논리적 방식의 질문과 해설을 작성해 주세요.
@@ -432,11 +447,12 @@ ${buildItems(SERMON_STEP_ITEMS.application, selectedKeys)}
 6단계 교훈이 아래에 주어지지 않았으면, 먼저 본문의 원칙적 교훈 5가지를 제목으로 짧게 정리한 뒤 같은 방식으로 쓰세요.
 A4 용지 3~4매 분량(약 2,500~4,000자)으로 상세하게 작성해 주세요.
 
+${buildItems(SERMON_STEP_ITEMS.deep_questions, selectedKeys)}
+
+[이번 본문]
 본문: ${passage}
 응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
 기본 번역본: ${bible || '개역개정성경'}
-
-${buildItems(SERMON_STEP_ITEMS.deep_questions, selectedKeys)}
 `,
 }
 
@@ -507,7 +523,9 @@ function cellFormat(stepKey) {
 function buildCell({ passage, bible, lang, stepKey, customText = '', userKeyword = '', sermonContext = '', memory = '' }) {
   const promptFn = CELL_MATERIAL_PROMPTS[stepKey]
   if (!promptFn) throw new Error('Unknown cell step key: ' + stepKey)
-  let prompt = withCitationPolicy(promptFn(passage, bible) + '\n\n' + cellFormat(stepKey), lang)
+  // 고정 글(교재 원칙·결과 모양)을 앞에, 바뀌는 본문은 맨 뒤에 — 앞부분이 같으면 AI 요금 할인(캐시)
+  const [fixed, current = ''] = promptFn(passage, bible).split('\n\n[이번 교재]\n')
+  let prompt = withCitationPolicy(fixed + '\n\n' + cellFormat(stepKey) + (current ? `\n\n[이번 교재]\n${current}` : ''), lang)
   if (customText) prompt += `\n\n[구성 지시항목 — 아래 항목을 반드시 포함하여 작성하세요]\n${customText}`
   if (sermonContext) {
     prompt += `\n\n[설교 연구 참고 자료]\n아래는 같은 본문으로 작성된 설교 연구 내용입니다. 이 자료를 충분히 반영하여 교재를 작성해 주세요. 설교자의 본문 이해와 신학적 관점, 강조점을 교재 곳곳에 녹여주세요.\n\n${sermonContext}`
@@ -563,9 +581,6 @@ function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelec
 기도문과 축도문은 진행 지시어나 괄호 안 설명 없이 바로 낭독할 수 있는 본문만 작성하세요.
 서문, 인사, 예배 개요 같은 머리말은 쓰지 말고, 첫 줄부터 바로 '1. 예배의 부름 성경구절'로 시작하세요.
 
-날짜: ${date} | 절기: ${season || '일반 주일'} | 성서정과: ${lectionary || '미지정'}
-번역본: ${bible || '개역개정성경'} | 언어: ${lang === 'ko' ? '한국어' : 'English'}
-
 [찬송가 목록]
 찬송 추천([3], [7], [10] 항목)은 반드시 시스템 지시에 있는 '대한찬송가공회 찬송가 전체 목록'의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
 
@@ -573,10 +588,9 @@ function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelec
 
 [1. 예배의 부름 성경구절]
 ${sel('call_verse')}
-[참고 구절 DB — 아래 목록에서 절기와 성서정과에 가장 어울리는 구절을 우선 선택하세요]
-${getRandomVerseText(CALL_TO_WORSHIP_VERSES)}
+[참고 구절 DB — 맨 아래 '이번 예배 정보'의 예배의 부름 구절 목록에서 절기와 성서정과에 가장 어울리는 구절을 우선 선택하세요]
 구절 선택 원칙:
-- 성서정과·교회력·계절 세 가지를 기준으로, 아래 [이 주일의 참고 자료]에 있는 '예배의 부름' 성구와 위 DB 목록 안에서 고르세요.
+- 성서정과·교회력·계절 세 가지를 기준으로, 아래 [이 주일의 참고 자료]에 있는 '예배의 부름' 성구와 예배의 부름 구절 목록 안에서 고르세요.
 - 시편 100편, 시편 95:1-6, 시편 150편, 요한복음 4:24처럼 지나치게 자주 반복되는 구절은 피하세요.
 - 장절과 본문 전체만 제시하세요. 선택 이유나 설명은 쓰지 마세요.
 
@@ -596,9 +610,8 @@ ${sel('opening_hymns')}
 [5. 용서의 선언]
 - 하나님의 용서와 사죄를 선언하는 성경구절 2~3개를 반드시 제시하세요.
 - 각 구절은 참조(예: 요한일서 1:9)와 구절 전문(${bible || '개역개정성경'} 번역 직접 인용)을 함께 적으세요. 구절 내용을 생략하지 마세요.
-[참고 구절 DB — 아래 목록에서 절기에 가장 어울리는 구절을 우선 선택하세요]
-${getRandomVerseText(FORGIVENESS_VERSES)}
-- 위 DB 목록을 우선 참고하되, 요한일서 1:9·시편 103:12처럼 매주 반복되는 구절은 피하고, 구약과 신약을 골고루 선택하세요.
+[참고 구절 DB — 맨 아래 '이번 예배 정보'의 용서의 선언 구절 목록에서 절기에 가장 어울리는 구절을 우선 선택하세요]
+- DB 목록을 우선 참고하되, 요한일서 1:9·시편 103:12처럼 매주 반복되는 구절은 피하고, 구약과 신약을 골고루 선택하세요.
 - 장절과 본문 전체만 제시하세요. 선택 이유나 해설, 선언 문구는 덧붙이지 마세요.
 ${sel('forgiveness')}
 
@@ -629,6 +642,16 @@ ${sel('sending')}
 [12. 축도]
 - "~~~ 주 예수 그리스도의 은혜와, ~~~ 하나님의 사랑과, ~~~ 성령의 역사(인도)하심이 ~~~ 위에 함께하시기를 축원하옵나이다. 아멘." 형식으로 작성. 삼위 각각의 수식어(~~~)는 절기와 말씀에 맞게 채울 것.
 - 이 축도 문장 하나만 쓰고, 앞뒤에 다른 문장이나 설명을 더하지 말 것. 반드시 "축원하옵나이다. 아멘."으로 끝낼 것.
+
+[이번 예배 정보]
+날짜: ${date} | 절기: ${season || '일반 주일'} | 성서정과: ${lectionary || '미지정'}
+번역본: ${bible || '개역개정성경'} | 언어: ${lang === 'ko' ? '한국어' : 'English'}
+
+[예배의 부름 구절 목록]
+${getRandomVerseText(CALL_TO_WORSHIP_VERSES)}
+
+[용서의 선언 구절 목록]
+${getRandomVerseText(FORGIVENESS_VERSES)}
 `
   // 같은 교회력 주일의 실제 예배 자료 (서버가 붙인다 — bibleblok-generate/index.ts)
   if (refs) prompt += `\n\n${refs}`
@@ -666,12 +689,6 @@ function buildDawnCombined({ passage, emphasis, lang, bible, seriesCtx, stepSele
 찬송
 
 
-본문: ${passage}
-응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
-기본 번역본: ${bible || '개역개정성경'}
-${seriesCtx ? `\n${seriesCtx}\n이 시리즈의 흐름을 이어가는 내용을 써 주세요.` : ''}
-${emphasis ? `\n강조하고 싶은 주제: ${emphasis}` : ''}
-
 [찬송가 목록]
 찬송은 반드시 시스템 지시에 있는 '대한찬송가공회 찬송가 전체 목록'의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
 
@@ -700,6 +717,13 @@ ${sel('prayer_topics')}
 [찬송] (번호 없이 제목만)
 ${sel('hymn')}
 - 곡 목록만 쓰고 선택 이유나 설명은 쓰지 마세요.
+
+[이번 본문]
+본문: ${passage}
+응답 언어: ${lang === 'ko' ? '한국어' : 'English'}
+기본 번역본: ${bible || '개역개정성경'}
+${seriesCtx ? `\n${seriesCtx}\n이 시리즈의 흐름을 이어가는 내용을 써 주세요.` : ''}
+${emphasis ? `\n강조하고 싶은 주제: ${emphasis}` : ''}
 `
   const extraCustom = Object.values(customStepTexts).filter(Boolean).join('\n')
   if (extraCustom) prompt += `\n\n[추가 지시항목]\n${extraCustom}`
