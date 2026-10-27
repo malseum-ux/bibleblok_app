@@ -409,8 +409,8 @@ ${buildItems(SERMON_STEP_ITEMS.illustration, selectedKeys)}
 기본 번역본: ${bible || '개역개정성경'}
 찬송가 기준: 대한찬송가공회 2006년 발행 찬송가 (총 645장)
 
-[대한찬송가공회 찬송가 전체 목록 - 반드시 이 목록의 번호와 제목을 그대로 사용하세요]
-${getHymnListText()}
+[찬송가 목록]
+찬송은 반드시 시스템 지시에 있는 '대한찬송가공회 찬송가 전체 목록'의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
 
 다음을 포함하세요:
 ${buildItems(SERMON_STEP_ITEMS.hymns, selectedKeys)}
@@ -474,6 +474,9 @@ const SERMON_STEP_PROMPTS_WITH_EMPHASIS = {
 }
 
 const DAWN_STYLE_SYSTEM = '절대로 "사랑하는 여러분", "함께", "~해 봅시다", "~하십시오", "~하세요" 같은 구어체·청중 호칭 표현을 사용하지 마세요. 모든 내용은 문어체(해설체)로, 독자가 혼자 읽으며 이해할 수 있는 산문으로 서술하세요.'
+
+// 찬송가 전체 목록 — 찬송을 고르는 요청(예배인도·새벽설교·찬송 선별)의 시스템 지시에 붙인다
+const HYMN_SYSTEM_TEXT = () => `[대한찬송가공회 찬송가 전체 목록 (2006년 발행, 총 645장)]\n${getHymnListText()}`
 
 // 모든 요청에 붙는 기본 시스템 지시 (마크다운 금지·번호 규칙·찬송가 기준)
 const BASE_SYSTEM = '모든 내용은 피상적인 요약이나 일반론에 머물지 말고 본문을 깊이 있게 다루되, 무엇보다 설교자가 실제 설교를 준비하고 전하는 데 직접 도움이 되는 방향으로 작성하세요(단, 사용자가 따로 지시한 분량·방식이 있으면 그 지시를 우선하세요). 결과를 반드시 일반 텍스트로만 작성하세요. ##, **, ***, --, ---, > 같은 마크다운 기호를 절대 사용하지 마세요. 제목은 줄 바꿈으로, 강조는 일반 문장으로 표현하세요. 단락과 항목 사이에는 반드시 빈 줄 하나로 구분하세요. 빈 줄을 두 줄 이상 연속으로 넣지 마세요. 여러 항목을 나열하거나 소제목이 있을 때는 번호를 붙여(1. 2. 3. 형식) 내용이 한눈에 구조적으로 파악되도록 작성하세요. 단, 기도문·선언문·축도문·낭독문·설교 원고처럼 이어서 읽는 글은 문단마다 번호를 붙이지 말고 자연스러운 문단으로 작성하세요. 찬송가를 추천할 때는 반드시 2006년 한국찬송가공회 발행 21세기찬송가(총 645장)를 기준으로 하세요. 번호와 제목을 스스로 교차 확인한 후 제시하되, 확신하지 못할 경우 번호 없이 제목만 제시하고 "번호는 직접 확인하세요"라고 안내하세요.'
@@ -542,7 +545,7 @@ function buildSermonStep({ stepKey, passage, emphasis, lang, bible, seriesCtx, s
   if (customText) fullPrompt += `\n${customText}`
   if (memory) fullPrompt += `\n\n${memory}`
   if (userKeyword) fullPrompt += `\n\n[필수 반영 — 아래 키워드/지시를 결과에 반드시 명확하게 담으세요]: ${userKeyword}`
-  return { prompt: fullPrompt, systemExtra: '' }
+  return { prompt: fullPrompt, systemExtra: '', hymns: stepKey === 'hymns' }
 }
 
 function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelectedItems, userKeyword = '', customStepTexts = {}, memory = '', refs = '' }) {
@@ -563,9 +566,8 @@ function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelec
 날짜: ${date} | 절기: ${season || '일반 주일'} | 성서정과: ${lectionary || '미지정'}
 번역본: ${bible || '개역개정성경'} | 언어: ${lang === 'ko' ? '한국어' : 'English'}
 
-[대한찬송가공회 찬송가 전체 목록]
-찬송 추천([3], [7], [10] 항목)은 반드시 아래 목록의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
-${getHymnListText()}
+[찬송가 목록]
+찬송 추천([3], [7], [10] 항목)은 반드시 시스템 지시에 있는 '대한찬송가공회 찬송가 전체 목록'의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
 
 다음 예배 순서를 모두 포함하세요:
 
@@ -635,7 +637,7 @@ ${sel('sending')}
   prompt = withCitationPolicy(prompt, lang)
   if (memory) prompt += `\n\n${memory}`
   if (userKeyword) prompt += `\n[필수 반영 — 아래 키워드/지시를 결과에 반드시 명확하게 담으세요]: ${userKeyword}`
-  return { prompt: prompt, systemExtra: '' }
+  return { prompt: prompt, systemExtra: '', hymns: true }
 }
 
 function buildDawnCombined({ passage, emphasis, lang, bible, seriesCtx, stepSelectedItems, userKeyword = '', customStepTexts = {}, memory = '' }) {
@@ -670,9 +672,8 @@ function buildDawnCombined({ passage, emphasis, lang, bible, seriesCtx, stepSele
 ${seriesCtx ? `\n${seriesCtx}\n이 시리즈의 흐름을 이어가는 내용을 써 주세요.` : ''}
 ${emphasis ? `\n강조하고 싶은 주제: ${emphasis}` : ''}
 
-[대한찬송가공회 찬송가 전체 목록]
-'찬송'은 반드시 아래 목록의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
-${getHymnListText()}
+[찬송가 목록]
+찬송은 반드시 시스템 지시에 있는 '대한찬송가공회 찬송가 전체 목록'의 번호와 제목을 그대로 사용하세요. 이 목록에 없는 번호나 제목은 절대 사용하지 마세요.
 
 각 부분에 담을 내용:
 
@@ -705,7 +706,7 @@ ${sel('hymn')}
   prompt = withCitationPolicy(prompt, lang)
   if (memory) prompt += `\n\n${memory}`
   if (userKeyword) prompt += `\n[필수 반영 — 아래 키워드/지시를 결과에 반드시 명확하게 담으세요]: ${userKeyword}`
-  return { prompt: prompt, systemExtra: DAWN_STYLE_SYSTEM }
+  return { prompt: prompt, systemExtra: DAWN_STYLE_SYSTEM, hymns: true }
 }
 
 function buildInlineCommand({ instruction, contextBefore = '', contextAfter = '', lang, bible, passage, title, stepsData = null, useTheological = false }) {
@@ -851,10 +852,12 @@ function clean(params) {
 export function buildRequest(kind, params) {
   const def = KINDS[kind]
   if (!def) return null
-  const { prompt, systemExtra } = def.build(clean(params))
+  const { prompt, systemExtra, hymns } = def.build(clean(params))
   if (typeof prompt !== 'string' || !prompt) return null
+  // 찬송가 목록은 늘 같은 글이라 시스템 지시 앞쪽(기본 지시 바로 뒤)에 둔다 — 앞부분이 매번 같으면 AI 요금 할인(캐시)을 받는다
+  const system = [BASE_SYSTEM, hymns ? HYMN_SYSTEM_TEXT() : '', systemExtra || ''].filter(Boolean).join('\n\n')
   const messages = def.noBaseSystem
     ? [{ role: 'user', content: prompt }]
-    : [{ role: 'system', content: systemExtra ? BASE_SYSTEM + '\n\n' + systemExtra : BASE_SYSTEM }, { role: 'user', content: prompt }]
+    : [{ role: 'system', content: system }, { role: 'user', content: prompt }]
   return { messages, stream: def.stream !== false, maxTokens: def.maxTokens || 8000 }
 }
