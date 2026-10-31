@@ -351,11 +351,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Row(children: [
         BoxIconButton(icon: Icons.menu, onPressed: () => setState(() => sidebarVisible = !showSidebar)),
         const SizedBox(width: 12),
-        // 로고 + 앱 이름 (워드블록과 같은 모양: 28px, 둥글기 8, 간격 8)
-        ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.asset('assets/logo-64.png', width: 28, height: 28, fit: BoxFit.cover)),
+        // 로고 + 앱 이름 (워드블록과 같은 모양: 28px, 둥글기 8, 간격 8) — 누르면 첫 화면(설교작성, 선택 없음)으로
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            key: const ValueKey('home-logo'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() {
+              tab = 'sermon';
+              selectedId = null;
+              wordblokSelected = null;
+              selectedFolder = null;
+            }),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.asset('assets/logo-64.png', width: 28, height: 28, fit: BoxFit.cover)),
+              if (!isMobile) ...[
+                const SizedBox(width: 8),
+                Text(appName(lang), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: c.textHeading, letterSpacing: -0.3)),
+              ],
+            ]),
+          ),
+        ),
         if (!isMobile) ...[
-          const SizedBox(width: 8),
-          Text(appName(lang), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: c.textHeading, letterSpacing: -0.3)),
           const SizedBox(width: 12),
           Container(width: 1, height: 20, color: c.border),
         ],

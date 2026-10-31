@@ -138,6 +138,17 @@ void main() {
     expect(find.text('날짜↑'), findsOneWidget); // 돌아오면 기억한 정렬
   });
 
+  testWidgets('로고를 누르면 첫 화면(설교작성, 선택 없음)으로 간다', (tester) async {
+    await _pumpHome(tester);
+    await tester.tap(find.text('설교 달력'));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlanView), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('home-logo')));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlanView), findsNothing);
+    expect(find.text('날짜↓'), findsOneWidget); // 설교작성 목록이 보인다
+  });
+
   testWidgets('설교 시간 버튼: 초안이 있으면 "약 N분", 누르면 꺼진다', (tester) async {
     final store = await _pumpHome(tester);
     final item = await store.createItem('sermon', {'date': '2026-10-18', 'title': '시험 설교'}, '');
