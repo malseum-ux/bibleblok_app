@@ -54,7 +54,7 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(store.customItemsFor('sermon', 'narrative').single.label, '청년 대상');
-    expect(find.textContaining('지시 항목 5/5'), findsOneWidget);
+    expect(find.textContaining('지시 항목 6/6'), findsOneWidget);
   });
 
   testWidgets('AI 생성 화면: 드래그로 고친 뒤 되돌리기·다시하기가 화면과 파일에 반영된다', (tester) async {

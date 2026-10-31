@@ -23,6 +23,7 @@ const Map<String, List<StepItem>> sermonStepItems = {
     StepItem(key: 'structure', label: '서사 구조', text: '- 서사 구조적 의미와 흐름'),
     StepItem(key: 'position', label: '위치와 역할', text: '- 해당 성경책에서의 위치와 역할'),
     StepItem(key: 'canonical', label: '정경 신학', text: '- 정경 전체에서의 신학적 위치'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 이 해설 가운데 설교에서 살릴 만한 통찰 2~3가지 (서론의 물음, 강조할 문장, 이야기로 풀 장면 등), 각 한두 문장'),
   ],
   'original': [
     StepItem(key: 'source', label: '원어 텍스트 기반', text: '- 구약이면 BHS(히브리어), 신약이면 NA28(헬라어)와 LXX 기반'),
@@ -30,6 +31,7 @@ const Map<String, List<StepItem>> sermonStepItems = {
     StepItem(key: 'words', label: '주요 단어 분석', text: '- 주요 단어와 문구의 원어 분석'),
     StepItem(key: 'usage', label: '신구약 용례', text: '- 신구약 성경에서의 용례 비교'),
     StepItem(key: 'meaning', label: '신학적 함의', text: '- 어근과 의미의 신학적 함의'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 이 원어 해설 가운데 설교에서 살릴 만한 통찰 2~3가지 (회중이 이해하기 쉬운 낱말 풀이 한 문장 등), 각 한두 문장'),
   ],
   'message': [
     StepItem(key: 'original_audience', label: '최초 청중 메시지', text: '- 최초 청중 메시지: 본문이 원래 청중에게 전달하려 한 메시지'),
@@ -37,15 +39,18 @@ const Map<String, List<StepItem>> sermonStepItems = {
     StepItem(key: 'human', label: '인간 본성', text: '- 인간의 본성과 반응에 대한 교훈'),
     StepItem(key: 'christology', label: '기독론적 관점', text: '- 기독론적 관점: 이 본문이 그리스도를 어떻게 가리키는지, 대표적인 신학자들(칼빈, 루터, 바르트, 라이트 등)과 설교가들이 이 본문을 기독론적으로 어떻게 해석해 왔는지 구체적으로 설명'),
     StepItem(key: 'jesus', label: '예수님의 실천적 모범', text: '- 예수님이 이 본문에서 보여주시는 실천적 모범'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 설교의 중심 줄기로 세울 문장 2~3가지, 각 한 문장'),
   ],
   'lesson': [
     StepItem(key: 'lessons', label: '본문의 교훈', text: '- 본문이 주는 원칙적 교훈 5가지. 각 교훈은 개인, 가정, 교회, 사회 등 삶의 모든 영역에 두루 적용될 수 있는 원칙으로 제시하고, 간결한 제목과 함께 본문 근거와 설명을 쓸 것. 특정 영역에만 해당하는 적용은 8단계(적용)에서 다루므로 여기서는 원칙에 집중할 것'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 교훈마다 설교에서 강조할 한 문장'),
   ],
   'text_study': [
     StepItem(key: 'main_theme', label: '주요 신학적 주제', text: '- 본문의 주요 신학적 주제'),
     StepItem(key: 'history', label: '신학적 해석 역사', text: '- 신학적 해석 역사: 교부, 중세, 개혁신학, 근대 주요 신학자들이 이 본문을 어떻게 해석해 왔는지 구체적으로 설명'),
     StepItem(key: 'rabbi', label: '정통 랍비 해석', text: '- 정통 랍비 해석: 유대교 정통 랍비 전통에서 이 본문(또는 해당 구약 본문)을 어떻게 해석해 왔는지 설명'),
     StepItem(key: 'modern', label: '현대 신학자 해석', text: '- 현대 주요 신학자들의 해석: 대표적인 현대 신학자들이 이 본문을 어떻게 해석하는지 구체적으로 설명'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 이 연구 가운데 설교에서 살릴 만한 통찰 2~3가지 (신학적 주제를 회중의 말로 옮긴 문장 등), 각 한두 문장'),
   ],
   'research': [
     StepItem(key: 'literary', label: '문학적 관점', text: '- 문학적 관점: 문학 비평가의 틀로 본문의 장르, 문체, 서사 구조, 수사법이 본문 의미에 어떻게 기여하는지 해석'),
@@ -53,6 +58,7 @@ const Map<String, List<StepItem>> sermonStepItems = {
     StepItem(key: 'philosophical', label: '철학적 관점', text: '- 철학적 관점: 철학자의 틀로 본문이 담고 있는 세계관, 존재론, 윤리적 함의를 해석'),
     StepItem(key: 'sociological', label: '사회학적 관점', text: '- 사회학적 관점: 사회학자의 틀로 당시 사회 구조, 권력 관계, 문화적 맥락이 본문 의미에 미치는 영향을 해석'),
     StepItem(key: 'psychological', label: '심리학적 관점', text: '- 심리학적 관점: 심리학자의 틀로 본문 인물의 내면 동기, 감정, 행동 패턴을 해석'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 이 확장 연구 가운데 설교에서 살릴 만한 통찰 2~3가지, 각 한두 문장'),
   ],
   'illustration': [
     StepItem(key: 'biblical', label: '성경 예화', text: '- 성경 예화: 본문과 연결되는 구약 예화 2개, 신약 예화 2개 (각 예화마다 본문과 연결되는 이유 설명)'),
@@ -70,11 +76,13 @@ const Map<String, List<StepItem>> sermonStepItems = {
     StepItem(key: 'personal', label: '개인 적용', text: '- 개인 적용: 지금까지의 해설을 바탕으로, 개인 신앙생활에서 이번 주부터 바로 실천할 수 있는 구체적 행동으로 제시'),
     StepItem(key: 'community', label: '공동체 적용', text: '- 공동체 적용: 지금까지의 해설을 바탕으로, 교회 공동체가 함께 실천할 수 있는 구체적 행동으로 제시'),
     StepItem(key: 'social', label: '사회 적용', text: '- 사회 적용: 지금까지의 해설을 바탕으로, 사회와 세상 속에서 실천할 수 있는 구체적 행동으로 제시'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 설교 결론에서 회중을 결단으로 이끌 말 2~3가지, 각 한두 문장'),
   ],
   'deep_questions': [
     StepItem(key: 'inductive', label: '귀납법적 질문', text: '- 귀납법적 질문과 해설: 교훈마다 본문의 구체적 사실과 관찰에서 출발해 그 교훈을 도출하는 질문과 해설'),
     StepItem(key: 'deductive', label: '연역법적 질문', text: '- 연역법적 질문과 해설: 교훈마다 그 교훈의 핵심 명제에서 출발해 구체적 삶의 상황에 적용하는 질문과 해설'),
     StepItem(key: 'dialectical', label: '변증법적 질문', text: '- 변증법적 질문과 해설(정반합): 교훈마다 긍정 명제(정)와 그에 맞서는 반론(반), 그 긴장을 통합하는 새로운 이해(합)로 구성된 질문과 해설'),
+    StepItem(key: 'sermon_point', label: '설교 포인트', text: '- 설교 포인트: 설교 중 회중에게 던질 질문 2~3가지, 각 한 문장'),
   ],
 };
 
