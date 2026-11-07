@@ -64,7 +64,7 @@ const Map<String, List<StepItem>> sermonStepItems = {
     StepItem(key: 'biblical', label: '성경 예화', text: '- 성경 예화: 본문과 연결되는 구약 예화 2개, 신약 예화 2개 (각 예화마다 본문과 연결되는 이유 설명)'),
     StepItem(key: 'historical', label: '역사적 사건', text: '- 역사적 사건: 본문과 연결되는 국내 역사적 사건 2개, 국외 역사적 사건 2개 (각 사건마다 본문과 연결되는 이유 설명)'),
     StepItem(key: 'literary', label: '문학 예화', text: '- 문학 예화: 본문과 연결되는 국내 문학 작품 예화 2개, 국외 문학 작품 예화 2개 (각 예화마다 본문과 연결되는 이유 설명)'),
-    StepItem(key: 'modern', label: '현대 언론 예화', text: '- 현대 언론 예화: 레거시 언론에 보도된 사건사고에서 볼 수 있는 현대인의 삶 예화 2개 (각 예화마다 본문과 연결되는 이유 설명)'),
+    StepItem(key: 'modern', label: '현대 언론 예화', text: '- 현대 언론 예화: 실제 보도된 사건에서 볼 수 있는 현대인의 삶 예화 2개 (각 예화마다 본문과 연결되는 이유, 그리고 언론사·보도일·기사 주소)'),
   ],
   'hymns': [
     StepItem(key: 'before_hymn', label: '설교 전 찬송가', text: '- 설교 전 찬송가 1곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호, 제목, 선택 이유)'),

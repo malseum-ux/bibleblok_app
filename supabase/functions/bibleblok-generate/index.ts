@@ -7,6 +7,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { buildRequest } from '../_shared/bibleblok_prompts.js'
 import { litKey, civilKey, pickRefs, refsText } from '../_shared/worship_refs.js'
+import { newsRefsFor } from '../_shared/news_refs.js'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,6 +61,17 @@ Deno.serve(async (req) => {
             .or(`lit_key.eq.${litKey(date)},civil_key.eq.${civilKey(date)}`)
           body.params.refs = refsText(pickRefs(rows || [], date))
         } catch { /* 자료를 못 읽어도 생성은 계속 */ }
+      }
+    }
+    // 설교작성 9단계(예화): 네이버 뉴스에서 실제 기사를 찾아 붙인다 (앱이 보낸 newsRefs 는 쓰지 않는다)
+    if (body?.kind === 'sermonStep' && body.params && typeof body.params === 'object') {
+      delete body.params.newsRefs
+      const sel = body.params.selectedItems
+      const wantsNews = !Array.isArray(sel) || sel.includes('modern')
+      if (body.params.stepKey === 'illustration' && wantsNews) {
+        try {
+          body.params.newsRefs = await newsRefsFor({ passage: String(body.params.passage || ''), emphasis: String(body.params.emphasis || ''), deepseekKey: DEEPSEEK_API_KEY })
+        } catch { /* 기사를 못 찾아도 생성은 계속 */ }
       }
     }
     const built = typeof body?.kind === 'string' ? buildRequest(body.kind, body.params) : null

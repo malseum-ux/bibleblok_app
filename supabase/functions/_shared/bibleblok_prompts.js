@@ -65,7 +65,7 @@ const SERMON_STEP_ITEMS = {
     { key: 'biblical', label: '성경 예화', text: '- 성경 예화: 본문과 연결되는 구약 예화 2개, 신약 예화 2개 (각 예화마다 본문과 연결되는 이유 설명)' },
     { key: 'historical', label: '역사적 사건', text: '- 역사적 사건: 본문과 연결되는 국내 역사적 사건 2개, 국외 역사적 사건 2개 (각 사건마다 본문과 연결되는 이유 설명)' },
     { key: 'literary', label: '문학 예화', text: '- 문학 예화: 본문과 연결되는 국내 문학 작품 예화 2개, 국외 문학 작품 예화 2개 (각 예화마다 본문과 연결되는 이유 설명)' },
-    { key: 'modern', label: '현대 언론 예화', text: '- 현대 언론 예화: 레거시 언론에 보도된 사건사고에서 볼 수 있는 현대인의 삶 예화 2개 (각 예화마다 본문과 연결되는 이유 설명)' },
+    { key: 'modern', label: '현대 언론 예화', text: '- 현대 언론 예화: 실제 보도된 사건에서 볼 수 있는 현대인의 삶 예화 2개 (각 예화마다 본문과 연결되는 이유, 그리고 언론사·보도일·기사 주소)' },
   ],
   hymns: [
     { key: 'before_hymn', label: '설교 전 찬송가', text: '- 설교 전 찬송가 1곡 (대한찬송가공회 2006년 발행, 총 645장 기준으로 번호, 제목, 선택 이유)' },
@@ -559,10 +559,14 @@ function prevStepsText(stepKey, prevSteps) {
   return parts.length ? `[${def.title}]\n${parts.join('\n\n')}\n\n${def.guide}` : ''
 }
 
-function buildSermonStep({ stepKey, passage, emphasis, lang, bible, seriesCtx, selectedItems = null, userKeyword = '', customText = '', memory = '', prevSteps = null }) {
+function buildSermonStep({ stepKey, passage, emphasis, lang, bible, seriesCtx, selectedItems = null, userKeyword = '', customText = '', memory = '', prevSteps = null, newsRefs = '' }) {
 
   const prev = prevStepsText(stepKey, prevSteps)
-  const prompt = (SERMON_STEP_PROMPTS_WITH_EMPHASIS[stepKey]?.(passage, emphasis, lang, bible, selectedItems) || '') + (prev ? `\n\n${prev}` : '')
+  // 9단계: 서버가 찾은 실제 기사 목록 (bibleblok-generate/index.ts) — 출처를 지어내지 않게
+  const news = stepKey !== 'illustration' ? '' : (newsRefs
+    ? `\n\n[실제 보도 기사 목록 — 네이버 뉴스 검색 결과]\n${newsRefs}\n\n현대 언론 예화는 반드시 위 목록의 기사 가운데서만 고르세요. 예화마다 끝에 "(언론사, 보도일, 기사 주소)"를 목록에 적힌 그대로 붙이세요. 목록에 본문과 어울리는 기사가 없으면 "알맞은 보도를 찾지 못함"이라고 쓰고, 기사나 출처를 지어내지 마세요.`
+    : `\n\n[현대 언론 예화 주의] 이번에는 실제 기사를 확인하지 못했습니다. 언론사·보도일을 지어내지 말고, 예화마다 "출처 확인 필요"라고 표시하세요.`)
+  const prompt = (SERMON_STEP_PROMPTS_WITH_EMPHASIS[stepKey]?.(passage, emphasis, lang, bible, selectedItems) || '') + (prev ? `\n\n${prev}` : '') + news
   let fullPrompt = seriesCtx
     ? prompt + `\n\n${seriesCtx}\n\n[강해설교 연속성 지침]\n- 위 이전 설교들의 본문 흐름과 신학적 주제를 반드시 파악하세요.\n- 이번 본문이 시리즈 전체에서 어떤 위치에 있는지 의식하며 작성하세요.\n- 이전 설교에서 다룬 내용을 반복하지 말고, 자연스럽게 그 위에 쌓아가세요.\n- 회중이 앞 설교의 흐름을 기억하며 이번 말씀을 들을 수 있도록 연결 고리를 살려 주세요.`
     : prompt
