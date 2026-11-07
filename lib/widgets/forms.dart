@@ -94,6 +94,7 @@ class _WorshipFormState extends State<WorshipForm> {
   late String date = widget.initial?['date'] ?? todayString();
   late String season = widget.initial?['season'] ?? getChurchSeason(date);
   late final lectionary = TextEditingController(text: widget.initial?['lectionary'] ?? '');
+  late final theme = TextEditingController(text: widget.initial?['emphasis'] ?? ''); // 예배 주제 (추수감사주일 등)
   bool loadingLectionary = false;
 
   Future<void> autoFill() async {
@@ -151,29 +152,56 @@ class _WorshipFormState extends State<WorshipForm> {
         ),
       ]),
       const SizedBox(height: 16),
-      FieldLabel(ko ? '성서정과 본문' : 'Lectionary'),
-      Row(children: [
-        Expanded(child: AppInput(controller: lectionary, hint: ko ? '예: 사 40:1-11 | 시 85 | 막 1:1-8' : 'E.g. Isa 40:1-11 | Ps 85 | Mark 1:1-8')),
-        const SizedBox(width: 8),
-        Tooltip(
-          message: ko ? 'AI로 성서정과 조회' : 'Auto-fill lectionary',
-          child: AccentButton(
-            loadingLectionary ? (ko ? '조회 중...' : 'Loading...') : (ko ? 'AI 조회' : 'AI Fill'),
-            height: 38,
-            fontSize: 12,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            onPressed: loadingLectionary ? null : autoFill,
+      // 성서정과 + 예배 주제 — 넓으면 한 줄(6:4), 좁으면 예배 주제를 아래로
+      LayoutBuilder(builder: (context, box) {
+        final wide = box.maxWidth >= 640;
+        final lectionaryField = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          FieldLabel(ko ? '성서정과 본문' : 'Lectionary'),
+          Row(children: [
+            Expanded(child: AppInput(controller: lectionary, hint: ko ? '예: 사 40:1-11 | 시 85 | 막 1:1-8' : 'E.g. Isa 40:1-11 | Ps 85 | Mark 1:1-8')),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: ko ? 'AI로 성서정과 조회' : 'Auto-fill lectionary',
+              child: AccentButton(
+                loadingLectionary ? (ko ? '조회 중...' : 'Loading...') : (ko ? 'AI 조회' : 'AI Fill'),
+                height: 38,
+                fontSize: 12,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                onPressed: loadingLectionary ? null : autoFill,
+              ),
+            ),
+          ]),
+        ]);
+        final themeField = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          FieldLabel(ko ? '예배 주제' : 'Service Theme'),
+          AppInput(
+            key: const ValueKey('worship-theme'),
+            controller: theme,
+            hint: ko ? '예: 추수감사주일, 성탄예배, 송구영신' : 'E.g. Thanksgiving, Christmas',
           ),
-        ),
-        const SizedBox(width: 48), // 웹: 간격 8 + 빈 칸 32 + 간격 8
-        AccentButton(
+        ]);
+        final save = AccentButton(
           ko ? '저장' : 'Save',
           height: 38,
           fontSize: 13,
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          onPressed: () => widget.onSave({'date': date, 'season': season, 'lectionary': lectionary.text}),
-        ),
-      ]),
+          onPressed: () => widget.onSave({'date': date, 'season': season, 'lectionary': lectionary.text, 'emphasis': theme.text.trim()}),
+        );
+        if (wide) {
+          return Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Expanded(flex: 6, child: lectionaryField),
+            const SizedBox(width: 12),
+            Expanded(flex: 4, child: themeField),
+            const SizedBox(width: 12),
+            save,
+          ]);
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          lectionaryField,
+          const SizedBox(height: 12),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [Expanded(child: themeField), const SizedBox(width: 12), save]),
+        ]);
+      }),
     ]);
   }
 }

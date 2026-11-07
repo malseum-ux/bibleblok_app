@@ -578,7 +578,7 @@ function buildSermonStep({ stepKey, passage, emphasis, lang, bible, seriesCtx, s
   return { prompt: fullPrompt, systemExtra: '', hymns: stepKey === 'hymns' }
 }
 
-function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelectedItems, userKeyword = '', customStepTexts = {}, memory = '', refs = '' }) {
+function buildWorshipCombined({ date, season, lectionary, lang, bible, stepSelectedItems, userKeyword = '', customStepTexts = {}, memory = '', refs = '', theme = '' }) {
 
   // 단계별로 선택된 지시항목을 사용해 동적으로 프롬프트 구성
   const sel = (key) => {
@@ -658,7 +658,7 @@ ${sel('sending')}
 [이번 예배 정보]
 날짜: ${date} | 절기: ${season || '일반 주일'} | 성서정과: ${lectionary || '미지정'}
 번역본: ${bible || '개역개정성경'} | 언어: ${lang === 'ko' ? '한국어' : 'English'}
-
+${theme ? `예배 주제: ${theme} — 예배의 부름부터 축도까지 모든 순서(구절·기도문·찬송·교독문)를 이 예배 주제에 맞게 작성하세요.\n` : ''}
 [예배의 부름 구절 목록]
 ${getRandomVerseText(CALL_TO_WORSHIP_VERSES)}
 

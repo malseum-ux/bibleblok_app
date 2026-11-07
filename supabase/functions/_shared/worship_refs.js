@@ -57,12 +57,24 @@ export function civilKey(dateStr) {
 // 달력으로 정해지는 특별 주일 — 이런 날은 교회력 위치보다 달력 위치가 우선
 const SPECIAL = /추수|맥추|종교개혁|어린이|어버이|가정|스승|성서주일|광복|삼일|3[.·]?1절|6[.·]?25|한국전쟁|송구영신|신년|성탄|군선교|장애인|환경|교회창립|노동|민족|평화통일/
 
+/// 예배 주제 → 자료 주일 이름에서 찾을 낱말 (예: "추수감사주일" → ["추수감사"])
+export function themeWords(theme) {
+  const t = String(theme || '').replace(/\s+/g, '')
+  if (!t) return []
+  const known = ['추수감사', '맥추감사', '성탄', '송구영신', '신년', '부활', '종려', '성령강림', '삼위일체', '종교개혁', '어린이', '어버이', '스승', '광복', '삼일', '교회설립', '창립', '성서주일', '장애인', '고난', '대림', '사순', '주현']
+  const hits = known.filter(k => t.includes(k))
+  return hits.length ? hits : [t.replace(/(주일|예배|절)$/, '')].filter(w => w.length >= 2)
+}
+
 /// 그날에 맞는 자료 고르기 — 가장 잘 맞는 것부터 최대 limit 개, 한 자료집에서 perSeries 개까지
 /// (자료집 = source 에서 끝의 해를 뺀 이름. 자료집이 여럿이면 골고루 섞인다)
-export function pickRefs(rows, dateStr, limit = 4, perSeries = 2) {
+export function pickRefs(rows, dateStr, limit = 4, perSeries = 2, theme = '') {
   const lk = litKey(dateStr), ck = civilKey(dateStr)
+  const words = themeWords(theme)
   const scored = rows.map(r => {
     let s = 0
+    // 예배 주제(추수감사 등)가 자료의 주일 이름에 있으면 가장 먼저
+    if (words.length && words.some(w => (r.occasion || '').includes(w))) s += 10
     if (r.civil_key === ck && SPECIAL.test(r.occasion || '')) s += 5
     if (r.lit_key === lk) s += 3
     else if (r.civil_key === ck) s += 1

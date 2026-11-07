@@ -180,10 +180,11 @@ Future<String> generateSermonStep(String stepKey, String? passage, String? empha
 
 Future<String> generateWorshipCombined(String? date, String? season, String? lectionary, String lang, String? bible,
         Map<String, List<String>>? stepSelectedItems, ChunkCallback? onChunk,
-        [String userKeyword = '', Map<String, String> customStepTexts = const {}, String memory = '']) =>
+        [String userKeyword = '', Map<String, String> customStepTexts = const {}, String memory = '', String theme = '']) =>
     streamKind('worshipCombined', {
       'date': date, 'season': season, 'lectionary': lectionary, 'lang': lang, 'bible': bible,
       'stepSelectedItems': stepSelectedItems, 'userKeyword': userKeyword, 'customStepTexts': customStepTexts, 'memory': memory,
+      'theme': theme,
     }, onChunk);
 
 Future<String> generateDawnCombined(String? passage, String? emphasis, String lang, String? bible, String? seriesCtx,

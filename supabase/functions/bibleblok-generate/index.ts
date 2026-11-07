@@ -6,7 +6,7 @@
 // - 브라우저(웹)에서도 읽을 수 있도록 모든 응답에 CORS 허가를 붙인다
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { buildRequest } from '../_shared/bibleblok_prompts.js'
-import { litKey, civilKey, pickRefs, refsText } from '../_shared/worship_refs.js'
+import { litKey, civilKey, pickRefs, refsText, themeWords } from '../_shared/worship_refs.js'
 import { newsRefsFor } from '../_shared/news_refs.js'
 
 const corsHeaders = {
@@ -59,7 +59,14 @@ Deno.serve(async (req) => {
           const { data: rows } = await admin.from('worship_refs')
             .select('source, date, lit_key, civil_key, occasion, data')
             .or(`lit_key.eq.${litKey(date)},civil_key.eq.${civilKey(date)}`)
-          body.params.refs = refsText(pickRefs(rows || [], date))
+          // 예배 주제(추수감사주일 등)가 있으면 그 주제의 자료도 함께 찾는다 (날짜가 그 주일이 아니어도)
+          const theme = typeof body.params.theme === 'string' ? body.params.theme.slice(0, 40) : ''
+          let extra: any[] = []
+          for (const w of themeWords(theme)) {
+            const { data } = await admin.from('worship_refs').select('source, date, lit_key, civil_key, occasion, data').ilike('occasion', `%${w}%`).limit(40)
+            extra = extra.concat(data || [])
+          }
+          body.params.refs = refsText(pickRefs([...(rows || []), ...extra], date, 4, 2, theme))
         } catch { /* 자료를 못 읽어도 생성은 계속 */ }
       }
     }

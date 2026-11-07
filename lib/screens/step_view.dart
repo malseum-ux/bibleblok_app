@@ -243,7 +243,7 @@ class _StepViewState extends ConsumerState<StepView> {
             activeItems, effectiveKeyword, customTextOf(selectedCustomKeys, customItems), memory, prevSteps);
       } else if (tab == 'worship') {
         full = await generateWorshipCombined(item.date, item.season, item.lectionary, lang, widget.bible, stepSelectedItems, onChunk,
-            effectiveKeyword, customStepTexts(), memory);
+            effectiveKeyword, customStepTexts(), memory, item.emphasis ?? '');
       } else {
         final seriesCtx = store.getSeriesContext('dawn', item.category, item.id);
         full = await generateDawnCombined(item.passage, item.emphasis, lang, widget.bible, seriesCtx, stepSelectedItems, onChunk,
@@ -423,6 +423,7 @@ class _StepViewState extends ConsumerState<StepView> {
     if (tab == 'worship') {
       item.season = data['season'];
       item.lectionary = data['lectionary'];
+      item.emphasis = data['emphasis'];
     } else {
       item.category = data['category'];
       item.title = data['title'];
@@ -485,7 +486,7 @@ class _StepViewState extends ConsumerState<StepView> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: tab == 'worship'
                 ? WorshipForm(
-                    initial: {'date': item.date, 'season': item.season, 'lectionary': item.lectionary},
+                    initial: {'date': item.date, 'season': item.season, 'lectionary': item.lectionary, 'emphasis': item.emphasis},
                     lang: lang,
                     bible: widget.bible,
                     onSave: handleSaveInfo,
