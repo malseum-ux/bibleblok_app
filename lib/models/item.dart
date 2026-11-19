@@ -7,7 +7,8 @@
 //   "date": "2026-09-21", "category": "", "title": "", "passage": "",
 //   "emphasis": "", "season": "", "lectionary": "", "draft": "<p>...</p>",
 //   "steps": { "0": "...", "4": "..." },
-//   "finalSteps": { }          ← 교재만 사용
+//   "finalSteps": { },         ← 교재만 사용
+//   "map": { "branches": [...] } ← 설교 설계도 (설교작성만, 없으면 생략)
 // }
 
 class Item {
@@ -24,6 +25,9 @@ class Item {
   String? draft;
   Map<int, String> steps;
   Map<int, String> finalSteps;
+
+  /// 설교 설계도 (widgets/sermon_map.dart SermonMap.toJson)
+  Map<String, dynamic>? map;
 
   /// 탭 폴더 안에서의 폴더 경로 ('' = 루트)
   String folder;
@@ -47,6 +51,7 @@ class Item {
     Map<int, String>? finalSteps,
     this.folder = '',
     this.fileName,
+    this.map,
   })  : steps = steps ?? {},
         finalSteps = finalSteps ?? {};
 
@@ -78,6 +83,7 @@ class Item {
       finalSteps: _intMap(j['finalSteps']),
       folder: folder,
       fileName: fileName,
+      map: j['map'] is Map ? (j['map'] as Map).cast<String, dynamic>() : null,
     );
   }
 
@@ -97,6 +103,7 @@ class Item {
         'draft': draft,
         'steps': steps.map((k, v) => MapEntry('$k', v)),
         if (finalSteps.isNotEmpty) 'finalSteps': finalSteps.map((k, v) => MapEntry('$k', v)),
+        if (map != null) 'map': map,
       };
 
   /// 사이드바 표시 이름 — 웹 Sidebar.getLabel 과 같은 규칙

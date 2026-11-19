@@ -1,0 +1,827 @@
+// 설교 설계도 — 설교작성 오른쪽 창의 [설계도] 탭
+// 가운데 제목·본문, 둘레 가지(설교 정보·Big Idea·서론·본론·결론·추가 공부 주제), 가지마다 대지 한 문장과 카드(하위 가지)
+// 마인드맵 보기 / 순서 보기, 왼쪽 단계 글을 골라 넣거나 끌어 놓기, 개요로 붙이기 · AI로 풀어 쓰기
+// 저장: 설교 파일(JSON)의 "map" 칸
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../theme/app_colors.dart';
+
+int _seq = 0;
+String _newId() => '${DateTime.now().microsecondsSinceEpoch}-${_seq++}';
+
+// ── 자료 ───────────────────────────────────────────────────────────────────
+
+class MapCard {
+  final String id;
+  String title;
+  String text;
+  String source; // 어디서 왔는지 (예: "6단계 교훈", "직접")
+  List<MapCard> children;
+
+  MapCard({String? id, required this.title, this.text = '', this.source = '', List<MapCard>? children})
+      : id = id ?? _newId(),
+        children = children ?? [];
+
+  /// 고른 글로 카드 만들기 — 제목은 첫 문장 앞부분
+  factory MapCard.fromText(String text, String source) => MapCard(title: shortTitle(text), text: text.trim(), source: source);
+
+  factory MapCard.fromJson(Map<String, dynamic> j) => MapCard(
+        id: j['id'] as String?,
+        title: (j['title'] ?? '') as String,
+        text: (j['text'] ?? '') as String,
+        source: (j['source'] ?? '') as String,
+        children: [for (final c in (j['children'] as List? ?? const [])) if (c is Map) MapCard.fromJson(c.cast<String, dynamic>())],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'text': text,
+        'source': source,
+        if (children.isNotEmpty) 'children': [for (final c in children) c.toJson()],
+      };
+}
+
+/// 첫 문장 앞부분 20자 안팎
+String shortTitle(String text) {
+  final t = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (t.isEmpty) return '';
+  final first = t.split(RegExp(r'(?<=[.!?。])\s')).first;
+  return first.length <= 24 ? first : '${first.substring(0, 22)}…';
+}
+
+/// 가지 종류: bigidea · intro(서론) · body(본론) · conclusion(결론) · study(추가 공부 주제)
+class MapBranch {
+  final String id;
+  final String kind;
+  String thesis; // 대지 — 이 가지에서 말할 한 문장
+  List<MapCard> cards;
+
+  MapBranch({String? id, required this.kind, this.thesis = '', List<MapCard>? cards})
+      : id = id ?? _newId(),
+        cards = cards ?? [];
+
+  factory MapBranch.fromJson(Map<String, dynamic> j) => MapBranch(
+        id: j['id'] as String?,
+        kind: (j['kind'] ?? 'body') as String,
+        thesis: (j['thesis'] ?? '') as String,
+        cards: [for (final c in (j['cards'] as List? ?? const [])) if (c is Map) MapCard.fromJson(c.cast<String, dynamic>())],
+      );
+
+  Map<String, dynamic> toJson() => {'id': id, 'kind': kind, 'thesis': thesis, 'cards': [for (final c in cards) c.toJson()]};
+}
+
+class SermonMap {
+  List<MapBranch> branches;
+  SermonMap(this.branches);
+
+  /// 처음 모양: Big Idea · 서론 · 본론 1·2·3 · 결론 · 추가 공부 주제
+  factory SermonMap.initial() => SermonMap([
+        MapBranch(kind: 'bigidea'),
+        MapBranch(kind: 'intro'),
+        MapBranch(kind: 'body'),
+        MapBranch(kind: 'body'),
+        MapBranch(kind: 'body'),
+        MapBranch(kind: 'conclusion'),
+        MapBranch(kind: 'study'),
+      ]);
+
+  factory SermonMap.fromJson(Object? raw) {
+    if (raw is! Map || raw['branches'] is! List) return SermonMap.initial();
+    final list = [for (final b in raw['branches'] as List) if (b is Map) MapBranch.fromJson(b.cast<String, dynamic>())];
+    return list.isEmpty ? SermonMap.initial() : SermonMap(list);
+  }
+
+  Map<String, dynamic> toJson() => {'version': 1, 'branches': [for (final b in branches) b.toJson()]};
+
+  bool get isEmpty => branches.every((b) => b.thesis.trim().isEmpty && b.cards.isEmpty);
+
+  /// 설교 순서 (Big Idea → 서론 → 본론 → 결론 → 추가 공부)
+  List<MapBranch> get ordered {
+    int rank(String k) => const {'bigidea': 0, 'intro': 1, 'body': 2, 'conclusion': 3, 'study': 4}[k] ?? 2;
+    final out = [...branches];
+    // 같은 종류(본론)끼리는 원래 순서 그대로
+    final idx = {for (var i = 0; i < branches.length; i++) branches[i].id: i};
+    out.sort((a, b) => rank(a.kind) != rank(b.kind) ? rank(a.kind) - rank(b.kind) : idx[a.id]! - idx[b.id]!);
+    return out;
+  }
+
+  /// 번호 (서론 1, 본론 2…, 결론 n) — Big Idea·추가 공부는 번호 없음
+  int? numberOf(MapBranch b) {
+    var n = 0;
+    for (final x in ordered) {
+      if (x.kind == 'bigidea' || x.kind == 'study') continue;
+      n++;
+      if (x.id == b.id) return n;
+    }
+    return null;
+  }
+
+  String nameOf(MapBranch b, bool ko) {
+    switch (b.kind) {
+      case 'bigidea':
+        return 'Big Idea';
+      case 'intro':
+        return ko ? '서론' : 'Introduction';
+      case 'conclusion':
+        return ko ? '결론' : 'Conclusion';
+      case 'study':
+        return ko ? '추가 공부 주제' : 'Further Study';
+      default:
+        final bodies = ordered.where((x) => x.kind == 'body').toList();
+        final i = bodies.indexWhere((x) => x.id == b.id) + 1;
+        return ko ? '본론 $i' : 'Point $i';
+    }
+  }
+
+  MapBranch? branch(String id) => branches.where((b) => b.id == id).firstOrNull;
+
+  /// 카드와 그 카드가 든 목록 찾기
+  (List<MapCard>, int)? locate(String cardId) {
+    (List<MapCard>, int)? walk(List<MapCard> list) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id == cardId) return (list, i);
+        final r = walk(list[i].children);
+        if (r != null) return r;
+      }
+      return null;
+    }
+
+    for (final b in branches) {
+      final r = walk(b.cards);
+      if (r != null) return r;
+    }
+    return null;
+  }
+
+  MapCard? removeCard(String cardId) {
+    final at = locate(cardId);
+    if (at == null) return null;
+    return at.$1.removeAt(at.$2);
+  }
+
+  /// 순서대로 쓴 개요 (plain=true 면 AI 에게 줄 글: 카드 전체 글 포함)
+  String outline(bool ko, {String? onlyBranchId}) {
+    final sb = StringBuffer();
+    void cardsOut(List<MapCard> list, String prefix) {
+      for (var i = 0; i < list.length; i++) {
+        final c = list[i];
+        final no = '$prefix.${i + 1}';
+        sb.writeln('$no ${c.title}${c.source.isNotEmpty ? ' [${c.source}]' : ''}');
+        if (c.text.trim().isNotEmpty && c.text.trim() != c.title.trim()) sb.writeln(c.text.trim());
+        cardsOut(c.children, no);
+      }
+    }
+
+    for (final b in ordered) {
+      if (onlyBranchId != null && b.id != onlyBranchId) continue;
+      if (b.kind == 'bigidea') {
+        if (b.thesis.trim().isNotEmpty || b.cards.isNotEmpty) {
+          sb.writeln('Big Idea: ${b.thesis.trim()}');
+          cardsOut(b.cards, '*');
+          sb.writeln();
+        }
+        continue;
+      }
+      final n = numberOf(b);
+      sb.writeln('${n != null ? '$n. ' : ''}${nameOf(b, ko)}${b.thesis.trim().isNotEmpty ? ' — ${b.thesis.trim()}' : ''}');
+      cardsOut(b.cards, '${n ?? '*'}');
+      sb.writeln();
+    }
+    return sb.toString().trim();
+  }
+}
+
+/// 왼쪽 단계 글에서 끌어 온 글 (끌어 놓기)
+class MapTextDrag {
+  final String text;
+  final String source;
+  const MapTextDrag(this.text, this.source);
+}
+
+class _CardDrag {
+  final String cardId;
+  const _CardDrag(this.cardId);
+}
+
+// 가지 색 (보여 주신 화면처럼 가지마다 다른 색)
+const _kindColor = {
+  'bigidea': Color(0xFFD99A1E),
+  'intro': Color(0xFF16A34A),
+  'conclusion': Color(0xFF0D9488),
+  'study': Color(0xFFB7791F),
+};
+const _bodyColors = [Color(0xFF2563EB), Color(0xFF7C3AED), Color(0xFFDB2777), Color(0xFFEA580C), Color(0xFF0891B2)];
+const _infoColor = Color(0xFFDC2626);
+
+Color branchColor(SermonMap map, MapBranch b) {
+  if (b.kind != 'body') return _kindColor[b.kind] ?? const Color(0xFF534AB7);
+  final bodies = map.ordered.where((x) => x.kind == 'body').toList();
+  final i = bodies.indexWhere((x) => x.id == b.id);
+  return _bodyColors[math.max(0, i) % _bodyColors.length];
+}
+
+// ── 화면 ───────────────────────────────────────────────────────────────────
+
+class SermonMapView extends StatefulWidget {
+  final SermonMap map;
+  final String lang;
+  final String? title;
+  final String? passage;
+  final String? date;
+  final String? category;
+  final int speechRate;
+  final bool aiBusy;
+  final ValueChanged<SermonMap> onChanged;
+
+  /// 개요로 붙이기 (AI 없이)
+  final VoidCallback onPasteOutline;
+
+  /// AI로 풀어 쓰기 — branchId 가 null 이면 전체, chars 는 목표 글자 수
+  final void Function(String? branchId, int chars) onAiWrite;
+
+  const SermonMapView({
+    super.key,
+    required this.map,
+    required this.lang,
+    required this.onChanged,
+    required this.onPasteOutline,
+    required this.onAiWrite,
+    this.title,
+    this.passage,
+    this.date,
+    this.category,
+    this.speechRate = 300,
+    this.aiBusy = false,
+  });
+
+  @override
+  State<SermonMapView> createState() => _SermonMapViewState();
+}
+
+class _SermonMapViewState extends State<SermonMapView> {
+  String view = 'map'; // map | order
+  final _stackKey = GlobalKey();
+  final _centerKey = GlobalKey();
+  final Map<String, GlobalKey> _chipKeys = {};
+  List<(Offset, Offset, Color)> _lines = [];
+
+  bool get ko => widget.lang != 'en';
+  SermonMap get map => widget.map;
+
+  void changed() {
+    widget.onChanged(map);
+    setState(() {});
+  }
+
+  GlobalKey _chipKey(String id) => _chipKeys.putIfAbsent(id, () => GlobalKey());
+
+  /// 가운데 → 가지 선을 그리기 위해 자리를 잰다 (그린 뒤에)
+  void _measure() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || view != 'map') return;
+      final stackBox = _stackKey.currentContext?.findRenderObject() as RenderBox?;
+      final centerBox = _centerKey.currentContext?.findRenderObject() as RenderBox?;
+      if (stackBox == null || centerBox == null || !stackBox.attached || !centerBox.attached) return;
+      final center = stackBox.globalToLocal(centerBox.localToGlobal(centerBox.size.center(Offset.zero)));
+      final lines = <(Offset, Offset, Color)>[];
+      for (final entry in _sides().expand((s) => s)) {
+        final box = _chipKeys[entry.$1]?.currentContext?.findRenderObject() as RenderBox?;
+        if (box == null || !box.attached) continue;
+        final rect = stackBox.globalToLocal(box.localToGlobal(Offset.zero)) & box.size;
+        final end = rect.center.dx > center.dx ? rect.centerLeft : rect.centerRight;
+        lines.add((center, end, entry.$2));
+      }
+      bool same = lines.length == _lines.length;
+      for (var i = 0; same && i < lines.length; i++) {
+        same = (lines[i].$1 - _lines[i].$1).distance < 0.5 && (lines[i].$2 - _lines[i].$2).distance < 0.5;
+      }
+      if (!same) setState(() => _lines = lines);
+    });
+  }
+
+  /// 시계 방향: 오른쪽 위→아래(설교 정보·Big Idea·서론·본론…), 왼쪽 아래→위(나머지)
+  List<List<(String, Color)>> _sides() {
+    final all = <(String, Color)>[('info', _infoColor), for (final b in map.ordered) (b.id, branchColor(map, b))];
+    final rightCount = (all.length / 2).ceil();
+    return [all.sublist(0, rightCount), all.sublist(rightCount).reversed.toList()];
+  }
+
+  // ── 고치기 창 ──
+
+  Future<String?> _askText({required String title, String initial = '', String hint = '', bool multiline = false}) {
+    final ctrl = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title, style: const TextStyle(fontSize: 15)),
+        content: SizedBox(
+          width: 420,
+          child: TextField(
+            controller: ctrl,
+            autofocus: true,
+            maxLines: multiline ? 8 : 1,
+            decoration: InputDecoration(hintText: hint, border: const OutlineInputBorder()),
+            onSubmitted: multiline ? null : (v) => Navigator.pop(ctx, v),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(ko ? '취소' : 'Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, ctrl.text), child: Text(ko ? '확인' : 'OK')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editThesis(MapBranch b) async {
+    final v = await _askText(
+      title: '${map.nameOf(b, ko)} — ${ko ? (b.kind == 'bigidea' ? '한 문장' : '대지 한 문장') : 'One sentence'}',
+      initial: b.thesis,
+      hint: b.kind == 'bigidea' ? (ko ? '이 설교가 말하려는 단 하나의 생각' : 'The one idea of this sermon') : (ko ? '이 가지에서 말할 한 문장' : 'What this part says'),
+    );
+    if (v == null) return;
+    b.thesis = v.trim();
+    changed();
+  }
+
+  Future<void> _writeCard(List<MapCard> into) async {
+    final v = await _askText(title: ko ? '직접 쓰기' : 'Write', hint: ko ? '내용 (첫 문장이 카드 제목이 됩니다)' : 'Content', multiline: true);
+    if (v == null || v.trim().isEmpty) return;
+    into.add(MapCard.fromText(v, ko ? '직접' : 'Typed'));
+    changed();
+  }
+
+  Future<void> _openCard(MapCard card) async {
+    final titleCtrl = TextEditingController(text: card.title);
+    final textCtrl = TextEditingController(text: card.text);
+    final c = context.c;
+    final targets = [for (final b in map.ordered) (b.id, map.nameOf(b, ko))];
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Expanded(child: Text(ko ? '카드' : 'Card', style: const TextStyle(fontSize: 15))),
+          if (card.source.isNotEmpty) Text(card.source, style: TextStyle(fontSize: 12, color: c.textMuted)),
+        ]),
+        content: SizedBox(
+          width: 520,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            TextField(
+              key: const ValueKey('map-card-title'),
+              controller: titleCtrl,
+              decoration: InputDecoration(labelText: ko ? '제목' : 'Title', border: const OutlineInputBorder()),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: textCtrl,
+              maxLines: 10,
+              minLines: 4,
+              decoration: InputDecoration(labelText: ko ? '내용' : 'Content', border: const OutlineInputBorder()),
+            ),
+            const SizedBox(height: 10),
+            Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+              OutlinedButton(onPressed: () => Navigator.pop(ctx, 'child'), child: Text(ko ? '+ 하위 가지' : '+ Sub-item')),
+              OutlinedButton(onPressed: () => Navigator.pop(ctx, 'up'), child: Text(ko ? '위로' : 'Up')),
+              OutlinedButton(onPressed: () => Navigator.pop(ctx, 'down'), child: Text(ko ? '아래로' : 'Down')),
+              PopupMenuButton<String>(
+                tooltip: '',
+                onSelected: (id) => Navigator.pop(ctx, 'move:$id'),
+                itemBuilder: (_) => [for (final t in targets) PopupMenuItem(value: t.$1, child: Text(t.$2))],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text(ko ? '다른 가지로 ▾' : 'Move to ▾', style: TextStyle(color: c.accent)),
+                ),
+              ),
+              TextButton(onPressed: () => Navigator.pop(ctx, 'delete'), child: Text(ko ? '빼기' : 'Remove', style: const TextStyle(color: AppColors.danger))),
+            ]),
+          ]),
+        ),
+        actions: [FilledButton(onPressed: () => Navigator.pop(ctx, 'save'), child: Text(ko ? '확인' : 'OK'))],
+      ),
+    );
+    if (action == null) return;
+    card.title = titleCtrl.text.trim().isEmpty ? shortTitle(textCtrl.text) : titleCtrl.text.trim();
+    card.text = textCtrl.text;
+    final at = map.locate(card.id);
+    if (action == 'child') {
+      changed();
+      await _writeCard(card.children);
+      return;
+    }
+    if (at != null) {
+      final (list, i) = at;
+      if (action == 'up' && i > 0) {
+        list.insert(i - 1, list.removeAt(i));
+      } else if (action == 'down' && i < list.length - 1) {
+        list.insert(i + 1, list.removeAt(i));
+      } else if (action == 'delete') {
+        list.removeAt(i);
+      } else if (action.startsWith('move:')) {
+        final to = map.branch(action.substring(5));
+        if (to != null) to.cards.add(list.removeAt(i));
+      }
+    }
+    changed();
+  }
+
+  void _acceptInto(MapBranch b, Object data) {
+    if (data is _CardDrag) {
+      final card = map.removeCard(data.cardId);
+      if (card != null) b.cards.add(card);
+    } else if (data is MapTextDrag) {
+      b.cards.add(MapCard.fromText(data.text, data.source));
+    }
+    changed();
+  }
+
+  void _addBody() {
+    final lastBody = map.branches.lastIndexWhere((b) => b.kind == 'body');
+    final at = lastBody >= 0 ? lastBody + 1 : map.branches.indexWhere((b) => b.kind == 'conclusion');
+    map.branches.insert(at < 0 ? map.branches.length : at, MapBranch(kind: 'body'));
+    changed();
+  }
+
+  Future<void> _removeBranch(MapBranch b) async {
+    final ok = b.cards.isEmpty && b.thesis.trim().isEmpty
+        ? true
+        : await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              content: Text(ko ? '${map.nameOf(b, ko)}을(를) 빼면 안의 카드도 함께 빠집니다.' : 'Remove this point and its cards?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ko ? '취소' : 'Cancel')),
+                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ko ? '빼기' : 'Remove')),
+              ],
+            ),
+          );
+    if (ok != true) return;
+    map.branches.remove(b);
+    changed();
+  }
+
+  Future<void> _askAiWrite() async {
+    final branches = map.ordered.where((b) => b.kind != 'study').toList();
+    String target = 'all';
+    final minutesCtrl = TextEditingController(text: '25');
+    final c = context.c;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) {
+          final mins = int.tryParse(minutesCtrl.text.trim()) ?? 0;
+          return AlertDialog(
+            title: Text(ko ? 'AI로 설교문 풀어 쓰기' : 'Write sermon with AI', style: const TextStyle(fontSize: 15)),
+            content: SizedBox(
+              width: 420,
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text(ko ? '설계도를 뼈대로, 카드의 자료를 재료로 이어지는 설교문을 씁니다. 쓴 글은 초안 끝에 붙습니다.' : 'Writes a sermon from this map; appended to the draft.',
+                    style: TextStyle(fontSize: 12, color: c.textMuted, height: 1.5)),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: target,
+                  decoration: InputDecoration(labelText: ko ? '쓸 범위' : 'Scope', border: const OutlineInputBorder()),
+                  items: [
+                    DropdownMenuItem(value: 'all', child: Text(ko ? '설교 전체' : 'Whole sermon')),
+                    for (final b in branches) DropdownMenuItem(value: b.id, child: Text(map.nameOf(b, ko))),
+                  ],
+                  onChanged: (v) => setD(() {
+                    target = v ?? 'all';
+                    minutesCtrl.text = target == 'all' ? '25' : '5';
+                  }),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: minutesCtrl,
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setD(() {}),
+                  decoration: InputDecoration(
+                    labelText: ko ? '설교 시간(분)' : 'Minutes',
+                    helperText: ko ? '약 ${mins * widget.speechRate}자 (1분에 ${widget.speechRate}자, 설정의 설교 속도)' : '~${mins * widget.speechRate} chars',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ]),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ko ? '취소' : 'Cancel')),
+              FilledButton(onPressed: mins > 0 ? () => Navigator.pop(ctx, true) : null, child: Text(ko ? '쓰기' : 'Write')),
+            ],
+          );
+        },
+      ),
+    );
+    if (ok != true) return;
+    final mins = int.tryParse(minutesCtrl.text.trim()) ?? 25;
+    widget.onAiWrite(target == 'all' ? null : target, math.max(300, mins * widget.speechRate));
+  }
+
+  // ── 그리기 ──
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.c;
+    Widget seg(String key, String label) => InkWell(
+          onTap: () => setState(() => view = key),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: view == key ? c.accent : null, borderRadius: BorderRadius.circular(5)),
+            child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: view == key ? Colors.white : c.textMuted)),
+          ),
+        );
+    Widget tool(String label, VoidCallback? onTap, {bool accent = false}) => Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: TextButton(
+            onPressed: onTap,
+            style: TextButton.styleFrom(
+              backgroundColor: accent ? c.accentLight : null,
+              foregroundColor: c.accent,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5), side: BorderSide(color: accent ? c.accent : c.border)),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            child: Text(label),
+          ),
+        );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(border: Border.all(color: c.border), borderRadius: BorderRadius.circular(7)),
+              child: Row(children: [seg('map', ko ? '마인드맵' : 'Mind map'), seg('order', ko ? '순서 보기' : 'Outline')]),
+            ),
+            tool(ko ? '+ 본론 더하기' : '+ Point', _addBody),
+            tool(ko ? '개요로 붙이기' : 'Paste outline', map.isEmpty ? null : widget.onPasteOutline),
+            tool(widget.aiBusy ? (ko ? '쓰는 중...' : 'Writing...') : (ko ? 'AI로 풀어 쓰기' : 'Write with AI'), map.isEmpty || widget.aiBusy ? null : _askAiWrite,
+                accent: true),
+          ]),
+        ),
+      ),
+      Expanded(child: view == 'map' ? _mindMap(c) : _orderView(c)),
+    ]);
+  }
+
+  // 마인드맵 보기
+  Widget _mindMap(AppColors c) {
+    _measure();
+    final sides = _sides();
+    Widget column(List<(String, Color)> list, bool left) => Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: left ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            for (final (id, color) in list)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: id == 'info' ? _infoBlock(c, left) : _branchBlock(c, map.branch(id)!, color, left),
+              ),
+          ],
+        );
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 900),
+          child: Stack(key: _stackKey, children: [
+            Positioned.fill(child: CustomPaint(painter: _LinePainter(_lines))),
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              SizedBox(width: 380, child: column(sides[1], true)),
+              const SizedBox(width: 40),
+              Container(
+                key: _centerKey,
+                width: 170,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(color: const Color(0xFF1F4D3A), borderRadius: BorderRadius.circular(10)),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text((widget.title?.trim().isNotEmpty == true ? widget.title! : (ko ? '설교 제목' : 'Sermon title')),
+                      textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFF5C451), fontSize: 15, fontWeight: FontWeight.w700)),
+                  if (widget.passage?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 4),
+                    Text(widget.passage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ],
+                ]),
+              ),
+              const SizedBox(width: 40),
+              SizedBox(width: 380, child: column(sides[0], false)),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(AppColors c, String key, String label, Color color, {int? count, VoidCallback? onTap, Widget? menu}) => Container(
+        key: _chipKey(key),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(color: c.bg, border: Border.all(color: color, width: 1.6), borderRadius: BorderRadius.circular(8)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          InkWell(
+            onTap: onTap,
+            child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),
+          ),
+          if (count != null) ...[
+            const SizedBox(width: 6),
+            Text('$count', style: TextStyle(fontSize: 11, color: c.textMuted)),
+          ],
+          ?menu,
+        ]),
+      );
+
+  Widget _infoBlock(AppColors c, bool left) {
+    final rows = <(String, String)>[
+      if (widget.date?.isNotEmpty == true) (ko ? '설교 일자' : 'Date', widget.date!),
+      if (widget.passage?.isNotEmpty == true) (ko ? '본문' : 'Passage', widget.passage!),
+      if (widget.category?.isNotEmpty == true) (ko ? '분류' : 'Category', widget.category!),
+    ];
+    final chip = _chip(c, 'info', ko ? '설교 정보' : 'Sermon info', _infoColor);
+    final body = Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      for (final (k, v) in rows)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 1),
+          child: Text('$k  $v', style: TextStyle(fontSize: 11.5, color: c.textMuted)),
+        ),
+      if (rows.isEmpty) Text(ko ? '기본정보에서 날짜·본문을 넣으세요' : 'Add date and passage in Info', style: TextStyle(fontSize: 11, color: c.textMuted)),
+    ]);
+    return Row(mainAxisSize: MainAxisSize.min, children: left ? [Flexible(child: body), const SizedBox(width: 10), chip] : [chip, const SizedBox(width: 10), Flexible(child: body)]);
+  }
+
+  Widget _branchBlock(AppColors c, MapBranch b, Color color, bool left) {
+    final n = map.numberOf(b);
+    final label = '${n != null ? '$n ' : (b.kind == 'bigidea' ? '★ ' : '')}${map.nameOf(b, ko)}';
+    final menu = PopupMenuButton<String>(
+      tooltip: '',
+      padding: EdgeInsets.zero,
+      iconSize: 16,
+      icon: Icon(Icons.more_horiz, size: 16, color: c.textMuted),
+      onSelected: (v) {
+        if (v == 'thesis') _editThesis(b);
+        if (v == 'write') _writeCard(b.cards);
+        if (v == 'remove') _removeBranch(b);
+      },
+      itemBuilder: (_) => [
+        PopupMenuItem(value: 'thesis', child: Text(b.kind == 'bigidea' ? (ko ? '한 문장 쓰기' : 'Write sentence') : (ko ? '대지 한 문장 쓰기' : 'Write main sentence'))),
+        PopupMenuItem(value: 'write', child: Text(ko ? '직접 쓰기' : 'Write a card')),
+        if (b.kind == 'body') PopupMenuItem(value: 'remove', child: Text(ko ? '이 본론 빼기' : 'Remove this point')),
+      ],
+    );
+    final chip = DragTarget<Object>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) => _acceptInto(b, d.data),
+      builder: (context, cand, _) => Container(
+        decoration: cand.isNotEmpty ? BoxDecoration(boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8)]) : null,
+        child: _chip(c, b.id, label, color, count: b.cards.length, onTap: () => _editThesis(b), menu: menu),
+      ),
+    );
+    final thesis = InkWell(
+      onTap: () => _editThesis(b),
+      child: Container(
+        width: 250,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: b.kind == 'bigidea' && b.thesis.isNotEmpty ? const Color(0x14D99A1E) : null,
+          border: Border.all(color: color.withValues(alpha: 0.45)),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          b.thesis.trim().isNotEmpty
+              ? b.thesis
+              : (b.kind == 'bigidea' ? (ko ? '이 설교의 단 하나의 생각' : 'The one idea') : (b.kind == 'study' ? (ko ? '더 공부할 주제' : 'To study more') : (ko ? '대지 — 이 가지에서 말할 한 문장' : 'Main sentence'))),
+          style: TextStyle(fontSize: 12, fontWeight: b.thesis.isNotEmpty ? FontWeight.w600 : FontWeight.w400, color: b.thesis.isNotEmpty ? c.text : c.textMuted),
+        ),
+      ),
+    );
+    final body = DragTarget<Object>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) => _acceptInto(b, d.data),
+      builder: (context, cand, _) => Container(
+        padding: const EdgeInsets.all(2),
+        decoration: cand.isNotEmpty ? BoxDecoration(border: Border.all(color: const Color(0xFF16A34A), width: 2), borderRadius: BorderRadius.circular(6)) : null,
+        child: Column(crossAxisAlignment: left ? CrossAxisAlignment.end : CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          thesis,
+          const SizedBox(height: 4),
+          for (var i = 0; i < b.cards.length; i++) _cardTile(c, b.cards[i], '${n ?? '•'}.${i + 1}', color, 0),
+          if (b.cards.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(ko ? '왼쪽 글을 골라 넣거나 끌어 놓기' : 'Add from the left or drop here', style: TextStyle(fontSize: 10.5, color: c.textMuted)),
+            ),
+        ]),
+      ),
+    );
+    return Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: left ? [Flexible(child: body), const SizedBox(width: 10), chip] : [chip, const SizedBox(width: 10), Flexible(child: body)]);
+  }
+
+  Widget _cardTile(AppColors c, MapCard card, String no, Color color, int depth) {
+    final tile = Container(
+      width: 250 - depth * 14.0,
+      margin: const EdgeInsets.only(top: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: c.bg, border: Border(left: BorderSide(color: color, width: 2.5))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('$no ${card.title}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.text, fontWeight: FontWeight.w600)),
+        if (card.source.isNotEmpty) Text(card.source, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: c.textMuted)),
+      ]),
+    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+      Draggable<Object>(
+        data: _CardDrag(card.id),
+        feedback: Material(color: Colors.transparent, child: Opacity(opacity: 0.85, child: tile)),
+        childWhenDragging: Opacity(opacity: 0.3, child: tile),
+        child: MouseRegion(cursor: SystemMouseCursors.click, child: GestureDetector(key: ValueKey('map-card-${card.id}'), onTap: () => _openCard(card), child: tile)),
+      ),
+      for (var i = 0; i < card.children.length; i++)
+        Padding(padding: EdgeInsets.only(left: 14.0 * (depth + 1)), child: _cardTile(c, card.children[i], '$no.${i + 1}', color, depth + 1)),
+    ]);
+  }
+
+  // 순서 보기
+  Widget _orderView(AppColors c) {
+    Widget cards(List<MapCard> list, String prefix, Color color, double indent) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (var i = 0; i < list.length; i++) ...[
+            InkWell(
+              onTap: () => _openCard(list[i]),
+              child: Container(
+                margin: EdgeInsets.only(left: indent, top: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(border: Border(left: BorderSide(color: color, width: 2.5))),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('$prefix.${i + 1} ${list[i].title}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: c.text)),
+                  if (list[i].source.isNotEmpty) Text(list[i].source, style: TextStyle(fontSize: 11, color: c.textMuted)),
+                  if (list[i].text.trim().isNotEmpty && list[i].text.trim() != list[i].title.trim())
+                    Padding(padding: const EdgeInsets.only(top: 3), child: Text(list[i].text.trim(), style: TextStyle(fontSize: 12.5, height: 1.6, color: c.text))),
+                ]),
+              ),
+            ),
+            if (list[i].children.isNotEmpty) cards(list[i].children, '$prefix.${i + 1}', color, indent + 16),
+          ],
+        ]);
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      Text(widget.title?.trim().isNotEmpty == true ? widget.title! : (ko ? '설교 제목' : 'Sermon title'),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.textHeading)),
+      if (widget.passage?.isNotEmpty == true) Text(widget.passage!, style: TextStyle(fontSize: 13, color: c.textMuted)),
+      const SizedBox(height: 12),
+      for (final b in map.ordered)
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: branchColor(map, b), width: 4), top: BorderSide(color: c.border), right: BorderSide(color: c.border), bottom: BorderSide(color: c.border)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              Expanded(
+                child: Text('${map.numberOf(b) != null ? '${map.numberOf(b)}. ' : ''}${map.nameOf(b, ko)}',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: branchColor(map, b))),
+              ),
+              TextButton(onPressed: () => _writeCard(b.cards), child: Text(ko ? '+ 직접 쓰기' : '+ Write', style: const TextStyle(fontSize: 12))),
+            ]),
+            InkWell(
+              onTap: () => _editThesis(b),
+              child: Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(border: Border.all(color: c.border), borderRadius: BorderRadius.circular(5)),
+                child: Text(
+                  b.thesis.trim().isNotEmpty ? b.thesis : (ko ? '대지 — 이 가지에서 말할 한 문장' : 'Main sentence'),
+                  style: TextStyle(fontSize: 13, color: b.thesis.trim().isNotEmpty ? c.text : c.textMuted),
+                ),
+              ),
+            ),
+            cards(b.cards, '${map.numberOf(b) ?? '•'}', branchColor(map, b), 0),
+          ]),
+        ),
+    ]);
+  }
+}
+
+class _LinePainter extends CustomPainter {
+  final List<(Offset, Offset, Color)> lines;
+  _LinePainter(this.lines);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final (a, b, color) in lines) {
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = 2.2
+        ..style = PaintingStyle.stroke;
+      final mid = (a.dx + b.dx) / 2;
+      final path = Path()
+        ..moveTo(a.dx, a.dy)
+        ..cubicTo(mid, a.dy, mid, b.dy, b.dx, b.dy);
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_LinePainter old) => old.lines != lines;
+}

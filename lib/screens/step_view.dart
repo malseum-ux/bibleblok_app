@@ -20,6 +20,7 @@ import '../services/text_history.dart';
 import '../theme/app_colors.dart';
 import '../widgets/forms.dart';
 import '../widgets/rich_view.dart';
+import '../widgets/sermon_map.dart';
 import '../widgets/step_widgets.dart';
 import '../widgets/ui.dart';
 
@@ -75,7 +76,10 @@ class _StepViewState extends ConsumerState<StepView> {
   bool infoOpen = false;
   double leftPct = 50;
   bool stepPanelVisible = true;
-  String mobilePanel = 'result';
+  String mobilePanel = 'result'; // result | map | draft (휴대폰 폭)
+  String rightTab = 'draft'; // 오른쪽 창: map(설계도) | draft(초안)
+  late final SermonMap sermonMap = SermonMap.fromJson(item.map);
+  Timer? mapTimer;
   Timer? draftTimer;
   Timer? resultEditTimer;
 
@@ -107,6 +111,7 @@ class _StepViewState extends ConsumerState<StepView> {
   void dispose() {
     draftTimer?.cancel();
     resultEditTimer?.cancel();
+    mapTimer?.cancel();
     draftHistory.dispose();
     resultHistory.dispose();
     keywordCtrl.dispose();
@@ -271,6 +276,71 @@ class _StepViewState extends ConsumerState<StepView> {
       item.draft = text;
       store.saveItem(item);
     });
+  }
+
+  // ── 설교 설계도 ─────────────────────────────────────────────────────────
+
+  /// 설계도가 바뀌면 설교 파일에 함께 저장 (잠깐 모았다가)
+  void saveMap() {
+    item.map = sermonMap.toJson();
+    mapTimer?.cancel();
+    mapTimer = Timer(const Duration(milliseconds: 500), () => store.saveItem(item));
+  }
+
+  /// 단계 글에서 고른 부분을 설계도 가지에 카드로
+  void addToMap(String branchId, String text) {
+    final b = sermonMap.branch(branchId);
+    if (b == null || text.trim().isEmpty) return;
+    b.cards.add(MapCard.fromText(text, mapSourceLabel));
+    saveMap();
+    setState(() {});
+  }
+
+  String get mapSourceLabel => tab == 'sermon' ? (ko ? '${currentStep + 1}단계 ${step.label(lang)}' : 'Step ${currentStep + 1} ${step.label(lang)}') : '';
+
+  /// 글 → 초안 HTML 문단
+  String _toParagraphs(String text) => text
+      .split(RegExp(r'\n+'))
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .map((l) => '<p>${escapeHtml(l)}</p>')
+      .join();
+
+  /// 개요로 붙이기 — 초안 끝에 (AI 없이)
+  void pasteOutline() {
+    final outline = sermonMap.outline(ko);
+    if (outline.isEmpty) return;
+    draftHistory.forceSnapshot();
+    handleDraftChange(draftHistory.text + _toParagraphs(outline));
+    draftHistory.forceSnapshot();
+    setState(() {
+      rightTab = 'draft';
+      if (widget.isMobile) mobilePanel = 'draft';
+    });
+  }
+
+  /// AI로 풀어 쓰기 — 초안 끝에 흘려 붙인다 (되돌리기로 취소)
+  Future<void> writeSermonFromMap(String? branchId, int chars) async {
+    if (refining || loading) return;
+    final outline = sermonMap.outline(ko);
+    final target = branchId == null ? null : sermonMap.branch(branchId);
+    final base = draftHistory.text;
+    draftHistory.forceSnapshot();
+    setState(() {
+      refining = true;
+      rightTab = 'draft';
+      if (widget.isMobile) mobilePanel = 'draft';
+    });
+    try {
+      final full = await writeFromMap(outline, target == null ? null : sermonMap.nameOf(target, ko), chars, item.passage, item.title, lang,
+          widget.bible, (text) => draftHistory.onChange(base + _toParagraphs(text)));
+      handleDraftChange(base + _toParagraphs(full));
+    } catch (_) {
+      handleDraftChange(base);
+    } finally {
+      draftHistory.forceSnapshot();
+      if (mounted) setState(() => refining = false);
+    }
   }
 
   /// 초안창 되돌리기·다시하기 — 누르는 즉시 파일에도 저장 (웹과 같다)
@@ -503,10 +573,13 @@ class _StepViewState extends ConsumerState<StepView> {
         Container(
           decoration: BoxDecoration(color: c.bgSidebar, border: Border(bottom: BorderSide(color: c.border))),
           child: Row(children: [
-            for (final (key, label) in en ? const [('result', 'AI Result'), ('draft', 'Sermon Draft')] : const [('result', 'AI 결과'), ('draft', '설교 초안')])
+            for (final (key, label) in en ? const [('result', 'AI Result'), ('map', 'Map'), ('draft', 'Draft')] : const [('result', 'AI 결과'), ('map', '설계도'), ('draft', '설교 초안')])
               Expanded(
                 child: InkWell(
-                  onTap: () => setState(() => mobilePanel = key),
+                  onTap: () => setState(() {
+                    mobilePanel = key;
+                    if (key != 'result') rightTab = key;
+                  }),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     alignment: Alignment.center,
@@ -519,8 +592,8 @@ class _StepViewState extends ConsumerState<StepView> {
         ),
       Expanded(
         child: LayoutBuilder(builder: (context, box) {
-          final showResult = !(isMobile && isSermon && mobilePanel == 'draft') && !(isSermon && !isMobile && !stepPanelVisible);
-          final showDraft = isSermon && (!isMobile || mobilePanel == 'draft');
+          final showResult = !(isMobile && isSermon && mobilePanel != 'result') && !(isSermon && !isMobile && !stepPanelVisible);
+          final showDraft = isSermon && (!isMobile || mobilePanel != 'result');
           const handleWidth = 16.0;
           final resultWidth = isSermon && !isMobile ? (box.maxWidth - handleWidth) * leftPct / 100 : box.maxWidth;
           return Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -705,7 +778,20 @@ class _StepViewState extends ConsumerState<StepView> {
                   source: content,
                   fontSize: widget.fontSize,
                   streaming: loading,
-                  selectionEdit: loading || refining ? null : selectionEdit(applyResultEdit),
+                  selectionEdit: loading || refining
+                      ? null
+                      : (tab == 'sermon'
+                          ? SelectionEditConfig(
+                              lang: lang,
+                              bible: widget.bible,
+                              passage: item.passage,
+                              title: item.title,
+                              onApply: applyResultEdit,
+                              mapTargets: [for (final b in sermonMap.ordered) (b.id, sermonMap.nameOf(b, ko))],
+                              onAddToMap: addToMap,
+                              mapSource: mapSourceLabel,
+                            )
+                          : selectionEdit(applyResultEdit)),
                 ),
               )
             : (loading
@@ -750,7 +836,43 @@ class _StepViewState extends ConsumerState<StepView> {
     );
   }
 
+  /// 오른쪽 창 — [설계도] [초안] 탭 (휴대폰 폭은 위쪽 탭으로 고른다)
   Widget _draftPanel(AppColors c) {
+    final mapView = SermonMapView(
+      key: const ValueKey('sermon-map'),
+      map: sermonMap,
+      lang: lang,
+      title: item.title,
+      passage: item.passage,
+      date: item.date,
+      category: item.category,
+      speechRate: ref.watch(settingsProvider).speechRate,
+      aiBusy: refining,
+      onChanged: (_) => saveMap(),
+      onPasteOutline: pasteOutline,
+      onAiWrite: writeSermonFromMap,
+    );
+    if (widget.isMobile) return rightTab == 'map' ? mapView : _draftBody(c);
+    Widget tabBtn(String key, String label) => InkWell(
+          key: ValueKey('right-tab-$key'),
+          onTap: () => setState(() => rightTab = key),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: rightTab == key ? c.accent : Colors.transparent, width: 2))),
+            child: Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: rightTab == key ? c.accent : c.textMuted)),
+          ),
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(color: c.bgSidebar, border: Border(bottom: BorderSide(color: c.border))),
+        child: Row(children: [tabBtn('map', ko ? '설계도' : 'Map'), tabBtn('draft', ko ? '초안' : 'Draft')]),
+      ),
+      Expanded(child: rightTab == 'map' ? mapView : _draftBody(c)),
+    ]);
+  }
+
+  Widget _draftBody(AppColors c) {
     final draftHasContent = stripHtml(draftHistory.text).trim().isNotEmpty;
     return TapRegion(
       onTapOutside: (_) {

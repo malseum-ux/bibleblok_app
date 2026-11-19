@@ -213,5 +213,12 @@ Future<String> executeSelectionEdit(String selectedText, String instruction, Str
       'lang': lang, 'bible': bible, 'passage': passage, 'title': title,
     }, onChunk);
 
+/// 설교 설계도 → 설교문 (target 이 null 이면 전체, 아니면 그 가지 이름만)
+Future<String> writeFromMap(String outline, String? target, int chars, String? passage, String? title, String lang, String? bible,
+        ChunkCallback? onChunk) =>
+    streamKind('mapToDraft', {
+      'outline': outline, 'target': target, 'chars': chars, 'passage': passage, 'title': title, 'lang': lang, 'bible': bible,
+    }, onChunk);
+
 Future<String> refineDraft(String draft, String lang, String? bible, ChunkCallback? onChunk) =>
     streamKind('refineDraft', {'draft': draft, 'lang': lang, 'bible': bible}, onChunk);

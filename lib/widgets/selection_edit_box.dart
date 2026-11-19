@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../services/ai.dart';
 import '../services/prompts.dart';
 import '../theme/app_colors.dart';
+import 'sermon_map.dart' show MapTextDrag;
 
 class SelectionEditRequest {
   final String selectedText;
@@ -25,6 +26,11 @@ class SelectionEditBox extends StatefulWidget {
   final Future<Future<void> Function()> Function(String result) onApply;
   final VoidCallback onClose;
 
+  /// 설교 설계도에 넣기 (비어 있으면 단추를 보이지 않는다)
+  final List<(String, String)> mapTargets;
+  final void Function(String branchId, String text)? onAddToMap;
+  final String mapSource;
+
   const SelectionEditBox({
     super.key,
     required this.request,
@@ -34,6 +40,9 @@ class SelectionEditBox extends StatefulWidget {
     required this.title,
     required this.onApply,
     required this.onClose,
+    this.mapTargets = const [],
+    this.onAddToMap,
+    this.mapSource = '',
   });
 
   @override
@@ -134,6 +143,46 @@ class _SelectionEditBoxState extends State<SelectionEditBox> {
           width: 340,
           padding: const EdgeInsets.all(10),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            // 설교 설계도에 넣기 — 가지 단추를 누르거나, 손잡이를 끌어 설계도 가지에 놓는다
+            if (widget.onAddToMap != null && widget.mapTargets.isNotEmpty && status == 'input') ...[
+              Row(children: [
+                Expanded(child: Text(en ? 'Add to sermon map' : '설계도에 넣기', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: c.accent))),
+                Draggable<Object>(
+                  data: MapTextDrag(widget.request.selectedText, widget.mapSource),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 240),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(color: c.bg, border: Border.all(color: c.accent), borderRadius: BorderRadius.circular(5)),
+                      child: Text(widget.request.selectedText, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.text)),
+                    ),
+                  ),
+                  onDragCompleted: widget.onClose,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.grab,
+                    child: Text(en ? '⠿ drag' : '⠿ 끌어 놓기', style: TextStyle(fontSize: 11, color: c.textMuted)),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Wrap(spacing: 4, runSpacing: 4, children: [
+                for (final (id, label) in widget.mapTargets)
+                  InkWell(
+                    key: ValueKey('add-to-map-$label'),
+                    onTap: () {
+                      widget.onAddToMap!(id, widget.request.selectedText);
+                      widget.onClose();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(border: Border.all(color: c.border), borderRadius: BorderRadius.circular(12)),
+                      child: Text(label, style: TextStyle(fontSize: 11.5, color: c.text)),
+                    ),
+                  ),
+              ]),
+              Divider(height: 16, color: c.border),
+            ],
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(en ? 'Edit selection with AI' : '선택한 부분 AI 수정',

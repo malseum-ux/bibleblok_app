@@ -45,7 +45,22 @@ class SelectionEditConfig {
 
   /// 고친 뒤 저장할 HTML
   final Future<void> Function(String html) onApply;
-  const SelectionEditConfig({required this.lang, required this.bible, required this.passage, required this.title, required this.onApply});
+
+  /// 설교 설계도에 넣기 — 가지 (id, 이름) 목록과 넣는 함수, 카드 출처 (설교작성 단계 글에서만)
+  final List<(String, String)> mapTargets;
+  final void Function(String branchId, String text)? onAddToMap;
+  final String mapSource;
+
+  const SelectionEditConfig({
+    required this.lang,
+    required this.bible,
+    required this.passage,
+    required this.title,
+    required this.onApply,
+    this.mapTargets = const [],
+    this.onAddToMap,
+    this.mapSource = '',
+  });
 }
 
 // 웹 RichEditor FONT_SIZES (0.75 0.85 1 1.2 1.5 2 em) 를 14px 기준으로
@@ -269,6 +284,9 @@ class RichViewState extends State<RichView> {
             bible: cfg.bible,
             passage: cfg.passage,
             title: cfg.title,
+            mapTargets: cfg.mapTargets,
+            onAddToMap: cfg.onAddToMap,
+            mapSource: cfg.mapSource,
             onClose: _closeEditBox,
             onApply: (result) async {
               final before = htmlFromDoc(controller.document);

@@ -817,6 +817,47 @@ ${contextAfter}`
   return { prompt: prompt, systemExtra: systemExtra }
 }
 
+// 설교 설계도(마인드맵) → 설교문. target 이 있으면 그 가지(예: 본론 2)만 쓴다
+function buildMapToDraft({ outline = '', target = '', chars = 7500, passage = '', title = '', lang, bible }) {
+  const n = Math.max(300, Math.min(15000, Number(chars) || 7500))
+  const bibleRef = bible || (lang === 'en' ? 'ESV' : '개역개정')
+  const scope = target
+    ? (lang === 'en' ? `Write ONLY the "${target}" part of the sermon (other parts are given for context).` : `설교 전체가 아니라 "${target}" 부분만 쓰세요. 나머지 부분은 흐름을 알기 위한 참고입니다.`)
+    : (lang === 'en' ? 'Write the whole sermon from introduction to conclusion.' : '서론부터 결론까지 설교 전체를 쓰세요.')
+  const prompt = lang === 'en'
+    ? `You are a preacher writing a sermon manuscript from your own sermon map.
+${scope}
+Length: about ${n} characters.
+
+[Principles]
+- Follow the map's order and structure exactly. Each part's main sentence (after the dash) is the center of that part.
+- Use the cards under each part (research notes, illustrations, sermon points) as the material; build the text from them.
+- Do not add new main points or materials that are not in the map, except natural transitions and brief explanations.
+- Write as a spoken sermon manuscript, flowing paragraphs, no numbering or headings.
+- Bible version: ${bibleRef}
+
+[Sermon] ${title || ''} (${passage || ''})
+
+[Sermon map]
+${outline}`
+    : `당신은 자신이 짠 설교 설계도(마인드맵)를 바탕으로 설교 원고를 쓰는 설교자입니다.
+${scope}
+분량: 약 ${n}자.
+
+[원칙]
+- 설계도의 순서와 구조를 그대로 따르세요. 각 부분 이름 뒤의 문장(— 다음)이 그 부분의 대지이며 중심입니다.
+- 각 부분 아래 카드(연구 자료·예화·설교 포인트)를 재료로 삼아 살을 붙이세요.
+- 설계도에 없는 새 대지나 자료는 더하지 마세요. 자연스러운 이음말과 짧은 설명만 더할 수 있습니다.
+- 회중 앞에서 읽는 설교 원고로, "~입니다" 경어체의 이어지는 문단으로 쓰세요. 번호나 소제목은 붙이지 마세요.
+- 성경 인용: ${bibleRef}
+
+[설교] ${title || ''} (${passage || ''})
+
+[설교 설계도]
+${outline}`
+  return { prompt, systemExtra: '' }
+}
+
 function buildRefineDraft({ draft, lang, bible }) {
 
   const bibleRef = bible || (lang === 'en' ? 'ESV' : '개역개정')
@@ -873,6 +914,7 @@ const KINDS = {
   dawnCombined: { build: buildDawnCombined },
   inlineCommand: { build: buildInlineCommand },
   selectionEdit: { build: buildSelectionEdit },
+  mapToDraft: { build: buildMapToDraft },
   refineDraft: { build: buildRefineDraft },
   lectionary: { build: buildLectionary, stream: false, maxTokens: 200, noBaseSystem: true },
 }
