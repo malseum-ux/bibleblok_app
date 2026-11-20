@@ -5,6 +5,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_colors.dart';
@@ -401,8 +402,21 @@ class _SermonMapViewState extends State<SermonMapView> {
     changed();
   }
 
+  /// 복사해 둔 글을 카드로 (출처: 붙여넣기)
+  Future<void> _pasteCard(List<MapCard> into) async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim() ?? '';
+    if (!mounted) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(ko ? '복사해 둔 글이 없습니다.' : 'Nothing to paste.')));
+      return;
+    }
+    into.add(MapCard.fromText(text, ko ? '붙여넣기' : 'Pasted'));
+    changed();
+  }
+
   Future<void> _writeCard(List<MapCard> into) async {
-    final v = await _askText(title: ko ? '직접 쓰기' : 'Write', hint: ko ? '내용 (첫 문장이 카드 제목이 됩니다)' : 'Content', multiline: true);
+    final v = await _askText(title: ko ? '직접 쓰기' : 'Write', hint: ko ? '내용을 쓰거나 붙여 넣으세요 (첫 문장이 카드 제목이 됩니다)' : 'Type or paste (first sentence becomes the title)', multiline: true);
     if (v == null || v.trim().isEmpty) return;
     into.add(MapCard.fromText(v, ko ? '직접' : 'Typed'));
     changed();
@@ -438,6 +452,7 @@ class _SermonMapViewState extends State<SermonMapView> {
             const SizedBox(height: 10),
             Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
               OutlinedButton(onPressed: () => Navigator.pop(ctx, 'child'), child: Text(ko ? '+ 하위 가지' : '+ Sub-item')),
+              OutlinedButton(onPressed: () => Navigator.pop(ctx, 'pasteChild'), child: Text(ko ? '붙여넣기로 하위 가지' : 'Paste as sub-item')),
               OutlinedButton(onPressed: () => Navigator.pop(ctx, 'up'), child: Text(ko ? '위로' : 'Up')),
               OutlinedButton(onPressed: () => Navigator.pop(ctx, 'down'), child: Text(ko ? '아래로' : 'Down')),
               PopupMenuButton<String>(
@@ -463,6 +478,10 @@ class _SermonMapViewState extends State<SermonMapView> {
     if (action == 'child') {
       changed();
       await _writeCard(card.children);
+      return;
+    }
+    if (action == 'pasteChild') {
+      await _pasteCard(card.children);
       return;
     }
     if (at != null) {
@@ -794,6 +813,7 @@ class _SermonMapViewState extends State<SermonMapView> {
     final n = map.numberOf(b);
     final label = '${n != null ? '$n ' : (b.kind == 'bigidea' ? '★ ' : '')}${map.nameOf(b, ko)}';
     final menu = PopupMenuButton<String>(
+      key: ValueKey('map-branch-menu-${b.id}'),
       tooltip: '',
       padding: EdgeInsets.zero,
       iconSize: 16,
@@ -801,11 +821,13 @@ class _SermonMapViewState extends State<SermonMapView> {
       onSelected: (v) {
         if (v == 'thesis') _editThesis(b);
         if (v == 'write') _writeCard(b.cards);
+        if (v == 'paste') _pasteCard(b.cards);
         if (v == 'remove') _removeBranch(b);
       },
       itemBuilder: (_) => [
         PopupMenuItem(value: 'thesis', child: Text(b.kind == 'bigidea' ? (ko ? '한 문장 쓰기' : 'Write sentence') : (ko ? '대지 한 문장 쓰기' : 'Write main sentence'))),
         PopupMenuItem(value: 'write', child: Text(ko ? '직접 쓰기' : 'Write a card')),
+        PopupMenuItem(value: 'paste', child: Text(ko ? '붙여넣기' : 'Paste')),
         if (b.kind == 'body') PopupMenuItem(value: 'remove', child: Text(ko ? '이 본론 빼기' : 'Remove this point')),
       ],
     );
@@ -951,6 +973,7 @@ class _SermonMapViewState extends State<SermonMapView> {
                 child: Text('${map.numberOf(b) != null ? '${map.numberOf(b)}. ' : ''}${map.nameOf(b, ko)}',
                     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: branchColor(map, b))),
               ),
+              TextButton(onPressed: () => _pasteCard(b.cards), child: Text(ko ? '붙여넣기' : 'Paste', style: const TextStyle(fontSize: 12))),
               TextButton(onPressed: () => _writeCard(b.cards), child: Text(ko ? '+ 직접 쓰기' : '+ Write', style: const TextStyle(fontSize: 12))),
             ]),
             InkWell(

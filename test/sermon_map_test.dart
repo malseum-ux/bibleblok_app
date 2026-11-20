@@ -6,6 +6,7 @@ import 'package:bibleblok_app/services/store.dart';
 import 'package:bibleblok_app/theme/app_colors.dart';
 import 'package:bibleblok_app/widgets/sermon_map.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -157,5 +158,21 @@ void main() {
     expect((await SharedPreferences.getInstance()).getString('bibleblok-map-layout'), 'right');
     await tester.tap(find.byKey(const ValueKey('map-fit')));
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('가지 메뉴 붙여넣기: 복사한 글이 카드로 들어간다', (tester) async {
+    final m = await pumpMap(tester);
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.getData') return {'text': '복사한 글입니다. 둘째 문장'};
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    final concl = m.branches.firstWhere((b) => b.kind == 'conclusion');
+    await tester.tap(find.descendant(of: find.byKey(ValueKey('map-branch-menu-${concl.id}')), matching: find.byType(Icon)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('붙여넣기').last);
+    await tester.pumpAndSettle();
+    expect(concl.cards.single.title, '복사한 글입니다.');
+    expect(concl.cards.single.source, '붙여넣기');
   });
 }
