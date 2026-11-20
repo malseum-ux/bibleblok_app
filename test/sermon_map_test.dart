@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'memory_fs.dart';
 
@@ -96,5 +97,65 @@ void main() {
     expect(item.draft, contains('1. 서론'));
     expect(find.byType(SermonMapView), findsNothing);
     expect(store.items['sermon']!.single.map, isNotNull);
+  });
+
+  Future<SermonMap> pumpMap(WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final m = SermonMap.initial();
+    final intro = m.branches[1];
+    intro.cards.addAll([MapCard(title: '첫째 카드', source: '직접'), MapCard(title: '둘째 카드', source: '직접')]);
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      theme: buildTheme(Brightness.light),
+      home: Scaffold(
+        body: SermonMapView(map: m, lang: 'ko', title: '제목', passage: '삼하 13:1-22', onChanged: (_) {}, onPasteOutline: () {}, onAiWrite: (_, _) {}),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    return m;
+  }
+
+  Future<void> dragTo(WidgetTester tester, Finder from, Offset to) async {
+    final g = await tester.startGesture(tester.getCenter(from));
+    await tester.pump(const Duration(milliseconds: 50));
+    await g.moveBy(const Offset(0, 20));
+    await tester.pump();
+    await g.moveTo(to);
+    await tester.pump();
+    await g.up();
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('카드 위에 놓으면 하위 가지, 카드 사이에 놓으면 그 자리', (tester) async {
+    final m = await pumpMap(tester);
+    final intro = m.branches[1];
+    final a = intro.cards[0], b = intro.cards[1];
+    // 둘째 카드를 첫째 카드 위에 → 하위 가지
+    await dragTo(tester, find.byKey(ValueKey('map-card-${b.id}')), tester.getCenter(find.byKey(ValueKey('map-card-${a.id}'))));
+    expect(intro.cards.map((c) => c.title).toList(), ['첫째 카드']);
+    expect(a.children.single.title, '둘째 카드');
+    expect(find.textContaining('1.1.1 둘째 카드'), findsOneWidget);
+    // 하위 가지를 다시 첫째 카드 앞 사이로 → 같은 줄 맨 앞
+    await dragTo(tester, find.byKey(ValueKey('map-card-${b.id}')), tester.getCenter(find.byKey(ValueKey('map-gap-${identityHashCode(intro.cards)}-0'))));
+    expect(intro.cards.map((c) => c.title).toList(), ['둘째 카드', '첫째 카드']);
+    expect(a.children, isEmpty);
+  });
+
+  testWidgets('배치 고르기: 오른쪽으로 바꾸면 기억한다', (tester) async {
+    await pumpMap(tester);
+    final infoBefore = tester.getCenter(find.text('설교 정보')).dx;
+    final kmBefore = tester.getCenter(find.textContaining('추가 공부 주제')).dx;
+    expect(kmBefore < infoBefore, isTrue); // 양쪽: 추가 공부 주제는 왼쪽
+    await tester.tap(find.byKey(const ValueKey('map-layout-right')));
+    await tester.pumpAndSettle();
+    final info = tester.getTopLeft(find.text('설교 정보')).dx;
+    final km = tester.getTopLeft(find.textContaining('추가 공부 주제')).dx;
+    expect((km - info).abs() < 2, isTrue); // 오른쪽: 이름표가 모두 같은 줄(왼쪽 끝)에 위→아래
+    expect(tester.getTopLeft(find.textContaining('추가 공부 주제')).dy > tester.getTopLeft(find.text('설교 정보')).dy, isTrue);
+    expect((await SharedPreferences.getInstance()).getString('bibleblok-map-layout'), 'right');
+    await tester.tap(find.byKey(const ValueKey('map-fit')));
+    await tester.pumpAndSettle();
   });
 }
