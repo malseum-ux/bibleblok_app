@@ -187,18 +187,43 @@ Future<({int? book, int? chapter, int? verse})> saveWordblokSermon(String path, 
 
 String _esc(String t) => t.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
-/// .scb 글 → 초안 HTML (줄 하나 = 문단 하나, 설교문 초안과 같은 문단 모양)
-String textToDraftHtml(String? text) =>
-    (text ?? '').split('\n').where((l) => l.trim().isNotEmpty).map((l) => '<p>${_esc(l)}</p>').join();
+// 11-22 성경나침반이 워드·한글 파일의 꾸밈을 살려 .scb 에 넣는다:
+//   **굵게**  *기울임*  <u>밑줄</u>  줄 머리 '# ' '## ' '### ' (제목)
+// 열 때는 이 표시를 편집기 서식으로, 저장할 때는 다시 표시로 바꿔 꾸밈이 사라지지 않게 한다 (색·크기는 저장하지 않음)
+final _mdInline = RegExp(r'\*\*(.+?)\*\*|&lt;u&gt;(.+?)&lt;/u&gt;|(?<![*\w])\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?![*\w])');
 
-/// 초안 HTML → .scb 글 (문단은 줄바꿈, 서식은 버림)
+String _inlineMd(String escaped) => escaped.replaceAllMapped(_mdInline, (m) {
+      if (m[1] != null) return '<strong>${_inlineMd(m[1]!)}</strong>';
+      if (m[2] != null) return '<u>${_inlineMd(m[2]!)}</u>';
+      return '<em>${_inlineMd(m[3]!)}</em>';
+    });
+
+/// .scb 글 → 초안 HTML (줄 하나 = 문단 하나, 설교문 초안과 같은 문단 모양)
+String textToDraftHtml(String? text) => (text ?? '').split('\n').where((l) => l.trim().isNotEmpty).map((l) {
+      final h = RegExp(r'^(#{1,6})\s+(.*)$').firstMatch(l);
+      if (h != null) {
+        final n = h[1]!.length.clamp(1, 3);
+        return '<h$n>${_inlineMd(_esc(h[2]!))}</h$n>';
+      }
+      return '<p>${_inlineMd(_esc(l))}</p>';
+    }).join();
+
+/// 초안 HTML → .scb 글 (문단은 줄바꿈. 굵게·기울임·밑줄·제목은 표시로 남기고 색·크기는 버림 — 11-22)
 String draftHtmlToText(String? html) {
   final h = html ?? '';
   if (!h.trimLeft().startsWith('<')) return h.trim();
   return h
       .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-      .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n')
+      .replaceAllMapped(RegExp(r'<h([1-6])\b[^>]*>', caseSensitive: false), (m) => '${'#' * int.parse(m[1]!).clamp(1, 3)} ')
+      .replaceAll(RegExp(r'</(p|h[1-6])>', caseSensitive: false), '\n')
+      .replaceAll(RegExp(r'</?(strong|b)\b[^>]*>', caseSensitive: false), '**')
+      .replaceAll(RegExp(r'</?(em|i)\b[^>]*>', caseSensitive: false), '*')
+      .replaceAll(RegExp(r'<u\b[^>]*>', caseSensitive: false), '\u0003')
+      .replaceAll(RegExp(r'</u>', caseSensitive: false), '\u0013')
       .replaceAll(RegExp(r'<[^>]+>'), '')
+      .replaceAll('****', '')
+      .replaceAll('\u0003', '<u>')
+      .replaceAll('\u0013', '</u>')
       .replaceAll('&nbsp;', ' ')
       .replaceAll('&lt;', '<')
       .replaceAll('&gt;', '>')
