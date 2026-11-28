@@ -146,7 +146,7 @@ class _SelectionEditBoxState extends State<SelectionEditBox> {
             // 설교 설계도에 넣기 — 가지 단추를 누르거나, 손잡이를 끌어 설계도 가지에 놓는다
             if (widget.onAddToMap != null && widget.mapTargets.isNotEmpty && status == 'input') ...[
               Row(children: [
-                Expanded(child: Text(en ? 'Add to sermon map' : '설계도에 넣기', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: c.accent))),
+                Expanded(child: Text(en ? 'Add to board / map' : '메모판·설계도에 넣기', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: c.accent))),
                 Draggable<Object>(
                   data: MapTextDrag(widget.request.selectedText, widget.mapSource),
                   feedback: Material(

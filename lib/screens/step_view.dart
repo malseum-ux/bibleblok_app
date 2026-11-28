@@ -20,6 +20,7 @@ import '../services/text_history.dart';
 import '../theme/app_colors.dart';
 import '../widgets/forms.dart';
 import '../widgets/rich_view.dart';
+import '../widgets/sermon_board.dart';
 import '../widgets/sermon_map.dart';
 import '../widgets/step_widgets.dart';
 import '../widgets/ui.dart';
@@ -76,10 +77,12 @@ class _StepViewState extends ConsumerState<StepView> {
   bool infoOpen = false;
   double leftPct = 50;
   bool stepPanelVisible = true;
-  String mobilePanel = 'result'; // result | map | draft (휴대폰 폭)
-  String rightTab = 'draft'; // 오른쪽 창: map(설계도) | draft(초안)
+  String mobilePanel = 'result'; // result | board | map | draft (휴대폰 폭)
+  String rightTab = 'draft'; // 오른쪽 창: board(메모판) | map(설계도) | draft(초안)
   late final SermonMap sermonMap = SermonMap.fromJson(item.map);
   Timer? mapTimer;
+  late final SermonBoard sermonBoard = SermonBoard.fromJson(item.board);
+  Timer? boardTimer;
   Timer? draftTimer;
   Timer? resultEditTimer;
 
@@ -112,6 +115,7 @@ class _StepViewState extends ConsumerState<StepView> {
     draftTimer?.cancel();
     resultEditTimer?.cancel();
     mapTimer?.cancel();
+    boardTimer?.cancel();
     draftHistory.dispose();
     resultHistory.dispose();
     keywordCtrl.dispose();
@@ -287,8 +291,16 @@ class _StepViewState extends ConsumerState<StepView> {
     mapTimer = Timer(const Duration(milliseconds: 500), () => store.saveItem(item));
   }
 
-  /// 단계 글에서 고른 부분을 설계도 가지에 카드로
+  /// 단계 글에서 고른 부분을 설계도 가지에 카드로 (branchId 가 메모판이면 메모판에 메모로)
   void addToMap(String branchId, String text) {
+    if (branchId == kBoardTarget) {
+      if (text.trim().isEmpty) return;
+      final at = sermonBoard.freeSpot();
+      sermonBoard.notes.add(BoardNote(text: text.trim(), x: at.dx, y: at.dy, source: mapSourceLabel));
+      saveBoard();
+      setState(() {});
+      return;
+    }
     final b = sermonMap.branch(branchId);
     if (b == null || text.trim().isEmpty) return;
     b.cards.add(MapCard.fromText(text, mapSourceLabel));
@@ -334,6 +346,204 @@ class _StepViewState extends ConsumerState<StepView> {
     try {
       final full = await writeFromMap(outline, target == null ? null : sermonMap.nameOf(target, ko), chars, item.passage, item.title, lang,
           widget.bible, (text) => draftHistory.onChange(base + _toParagraphs(text)));
+      handleDraftChange(base + _toParagraphs(full));
+    } catch (_) {
+      handleDraftChange(base);
+    } finally {
+      draftHistory.forceSnapshot();
+      if (mounted) setState(() => refining = false);
+    }
+  }
+
+  // ── 설교 메모판 ─────────────────────────────────────────────────────────
+
+  static const kBoardTarget = '__board__';
+
+  void saveBoard() {
+    item.board = sermonBoard.toJson();
+    boardTimer?.cancel();
+    boardTimer = Timer(const Duration(milliseconds: 500), () => store.saveItem(item));
+  }
+
+  /// 고른 메모를 설계도 가지에 카드로 (메모판에는 그대로 남긴다)
+  void sendBoardToMap(String branchId, List<BoardNote> notes) {
+    final b = sermonMap.branch(branchId);
+    if (b == null) return;
+    for (final n in notes) {
+      b.cards.add(MapCard.fromText(n.text, ko ? '메모판' : 'Board'));
+    }
+    saveMap();
+    setState(() {});
+  }
+
+  /// AI 로 메모판을 설계도 가지에 나누기 — 미리 보여 주고 [넣기]
+  Future<void> arrangeBoardToMap() async {
+    if (refining || loading) return;
+    final (text, back) = sermonBoard.describe();
+    if (back.isEmpty) return;
+    setState(() => refining = true);
+    Map<String, dynamic>? plan;
+    String? error;
+    try {
+      final bodies = sermonMap.branches.where((b) => b.kind == 'body').length;
+      final raw = await arrangeBoard(text, bodies == 0 ? 3 : bodies, item.passage, item.title, lang, null);
+      final m = RegExp(r'\{[\s\S]*\}').firstMatch(raw);
+      final j = m == null ? null : jsonDecode(m.group(0)!);
+      if (j is Map) {
+        plan = j.cast<String, dynamic>();
+      } else {
+        error = ko ? 'AI 답을 읽지 못했습니다. 다시 해 보세요.' : 'Could not read the AI answer. Try again.';
+      }
+    } on AbortedException {
+      // 중지
+    } catch (e) {
+      error = '$e'.replaceFirst('Exception: ', '');
+    } finally {
+      if (mounted) setState(() => refining = false);
+    }
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    if (plan == null) return;
+
+    // 미리 보기 글
+    String noteText(Object? code) => sermonBoard.note(back['$code'] ?? '')?.text.trim() ?? '';
+    final parts = [for (final p in (plan['parts'] as List? ?? const [])) if (p is Map) p.cast<String, dynamic>()];
+    final study = [for (final x in (plan['study'] as List? ?? const [])) '$x'];
+    var bodyNo = 0;
+    String partName(String kind) {
+      switch (kind) {
+        case 'intro':
+          return ko ? '서론' : 'Introduction';
+        case 'conclusion':
+          return ko ? '결론' : 'Conclusion';
+        default:
+          bodyNo++;
+          return ko ? '본론 $bodyNo' : 'Point $bodyNo';
+      }
+    }
+
+    final c = context.c;
+    final preview = <Widget>[
+      if ('${plan['bigidea'] ?? ''}'.trim().isNotEmpty) ...[
+        Text('Big Idea', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.accent)),
+        Text('${plan['bigidea']}', style: TextStyle(fontSize: 13, color: c.text)),
+        const SizedBox(height: 10),
+      ],
+      for (final p in parts) ...[
+        Text('${partName('${p['kind']}')}${'${p['thesis'] ?? ''}'.trim().isNotEmpty ? ' — ${p['thesis']}' : ''}',
+            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.text)),
+        for (final code in (p['notes'] as List? ?? const []))
+          if (noteText(code).isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 10, top: 2),
+              child: Text('· ${noteText(code)}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.textMuted)),
+            ),
+        const SizedBox(height: 8),
+      ],
+      if (study.any((x) => noteText(x).isNotEmpty)) ...[
+        Text(ko ? '추가 공부 주제' : 'Further Study', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: c.text)),
+        for (final code in study)
+          if (noteText(code).isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 10, top: 2),
+              child: Text('· ${noteText(code)}', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: c.textMuted)),
+            ),
+      ],
+    ];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ko ? 'AI가 나눈 설계도' : 'Suggested map', style: const TextStyle(fontSize: 15)),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+              Text(ko ? '[넣기]를 누르면 메모가 설계도 가지에 카드로 들어갑니다. 대지가 비어 있는 가지에만 대지 문장을 넣습니다. 메모판은 그대로 남습니다.'
+                      : 'Notes will be added as cards. Theses fill only empty branches. The board stays as it is.',
+                  style: TextStyle(fontSize: 12, height: 1.5, color: c.textMuted)),
+              const SizedBox(height: 12),
+              ...preview,
+            ]),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ko ? '취소' : 'Cancel')),
+          FilledButton(key: const ValueKey('board-arrange-apply'), onPressed: () => Navigator.pop(ctx, true), child: Text(ko ? '넣기' : 'Add')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    applyBoardPlan(plan, back);
+  }
+
+  /// AI 가 나눈 결과를 설계도에 넣기
+  void applyBoardPlan(Map<String, dynamic> plan, Map<String, String> back) {
+    MapBranch first(String kind) {
+      final b = sermonMap.branches.where((x) => x.kind == kind).firstOrNull;
+      if (b != null) return b;
+      final nb = MapBranch(kind: kind);
+      sermonMap.branches.add(nb);
+      return nb;
+    }
+
+    void addNotes(MapBranch b, Object? codes) {
+      for (final code in (codes as List? ?? const [])) {
+        final n = sermonBoard.note(back['$code'] ?? '');
+        if (n != null && n.text.trim().isNotEmpty) b.cards.add(MapCard.fromText(n.text, ko ? '메모판' : 'Board'));
+      }
+    }
+
+    void setThesis(MapBranch b, Object? t) {
+      final v = '${t ?? ''}'.trim();
+      if (v.isNotEmpty && b.thesis.trim().isEmpty) b.thesis = v;
+    }
+
+    setThesis(first('bigidea'), plan['bigidea']);
+    final bodies = sermonMap.ordered.where((b) => b.kind == 'body').toList();
+    var bi = 0;
+    for (final p in (plan['parts'] as List? ?? const [])) {
+      if (p is! Map) continue;
+      final kind = '${p['kind']}';
+      MapBranch b;
+      if (kind == 'intro' || kind == 'conclusion') {
+        b = first(kind);
+      } else {
+        if (bi < bodies.length) {
+          b = bodies[bi];
+        } else {
+          b = MapBranch(kind: 'body');
+          final at = sermonMap.branches.indexWhere((x) => x.kind == 'conclusion');
+          sermonMap.branches.insert(at < 0 ? sermonMap.branches.length : at, b);
+        }
+        bi++;
+      }
+      setThesis(b, p['thesis']);
+      addNotes(b, p['notes']);
+    }
+    addNotes(first('study'), plan['study']);
+    saveMap();
+    setState(() => rightTab = 'map');
+    if (widget.isMobile) setState(() => mobilePanel = 'map');
+  }
+
+  /// 메모판으로 초안 풀어 쓰기 — 초안 끝에 흘려 붙인다
+  Future<void> writeSermonFromBoard(Set<String>? only, int chars) async {
+    if (refining || loading) return;
+    final (text, back) = sermonBoard.describe(only: only);
+    if (back.isEmpty) return;
+    final base = draftHistory.text;
+    draftHistory.forceSnapshot();
+    setState(() {
+      refining = true;
+      rightTab = 'draft';
+      if (widget.isMobile) mobilePanel = 'draft';
+    });
+    try {
+      final full = await writeFromBoard(text, only != null, chars, item.passage, item.title, lang, widget.bible,
+          (t) => draftHistory.onChange(base + _toParagraphs(t)));
       handleDraftChange(base + _toParagraphs(full));
     } catch (_) {
       handleDraftChange(base);
@@ -573,7 +783,7 @@ class _StepViewState extends ConsumerState<StepView> {
         Container(
           decoration: BoxDecoration(color: c.bgSidebar, border: Border(bottom: BorderSide(color: c.border))),
           child: Row(children: [
-            for (final (key, label) in en ? const [('result', 'AI Result'), ('map', 'Map'), ('draft', 'Draft')] : const [('result', 'AI 결과'), ('map', '설계도'), ('draft', '설교 초안')])
+            for (final (key, label) in en ? const [('result', 'AI Result'), ('board', 'Board'), ('map', 'Map'), ('draft', 'Draft')] : const [('result', 'AI 결과'), ('board', '메모판'), ('map', '설계도'), ('draft', '설교 초안')])
               Expanded(
                 child: InkWell(
                   onTap: () => setState(() {
@@ -787,7 +997,7 @@ class _StepViewState extends ConsumerState<StepView> {
                               passage: item.passage,
                               title: item.title,
                               onApply: applyResultEdit,
-                              mapTargets: [for (final b in sermonMap.ordered) (b.id, sermonMap.nameOf(b, ko))],
+                              mapTargets: [(kBoardTarget, ko ? '메모판' : 'Board'), for (final b in sermonMap.ordered) (b.id, sermonMap.nameOf(b, ko))],
                               onAddToMap: addToMap,
                               mapSource: mapSourceLabel,
                             )
@@ -836,8 +1046,20 @@ class _StepViewState extends ConsumerState<StepView> {
     );
   }
 
-  /// 오른쪽 창 — [설계도] [초안] 탭 (휴대폰 폭은 위쪽 탭으로 고른다)
+  /// 오른쪽 창 — [메모판] [설계도] [초안] 탭 (휴대폰 폭은 위쪽 탭으로 고른다)
   Widget _draftPanel(AppColors c) {
+    final boardView = SermonBoardView(
+      key: const ValueKey('sermon-board'),
+      board: sermonBoard,
+      lang: lang,
+      speechRate: ref.watch(settingsProvider).speechRate,
+      aiBusy: refining,
+      onChanged: (_) => saveBoard(),
+      mapTargets: [for (final b in sermonMap.ordered) (b.id, sermonMap.nameOf(b, ko))],
+      onSendToMap: sendBoardToMap,
+      onAiArrange: arrangeBoardToMap,
+      onAiWrite: writeSermonFromBoard,
+    );
     final mapView = SermonMapView(
       key: const ValueKey('sermon-map'),
       map: sermonMap,
@@ -852,7 +1074,8 @@ class _StepViewState extends ConsumerState<StepView> {
       onPasteOutline: pasteOutline,
       onAiWrite: writeSermonFromMap,
     );
-    if (widget.isMobile) return rightTab == 'map' ? mapView : _draftBody(c);
+    Widget body() => rightTab == 'board' ? boardView : (rightTab == 'map' ? mapView : _draftBody(c));
+    if (widget.isMobile) return body();
     Widget tabBtn(String key, String label) => InkWell(
           key: ValueKey('right-tab-$key'),
           onTap: () => setState(() => rightTab = key),
@@ -866,9 +1089,9 @@ class _StepViewState extends ConsumerState<StepView> {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(color: c.bgSidebar, border: Border(bottom: BorderSide(color: c.border))),
-        child: Row(children: [tabBtn('map', ko ? '설계도' : 'Map'), tabBtn('draft', ko ? '초안' : 'Draft')]),
+        child: Row(children: [tabBtn('board', ko ? '메모판' : 'Board'), tabBtn('map', ko ? '설계도' : 'Map'), tabBtn('draft', ko ? '초안' : 'Draft')]),
       ),
-      Expanded(child: rightTab == 'map' ? mapView : _draftBody(c)),
+      Expanded(child: body()),
     ]);
   }
 

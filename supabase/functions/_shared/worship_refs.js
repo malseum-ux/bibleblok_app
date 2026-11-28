@@ -15,7 +15,7 @@ function easterOf(year) {
 }
 
 // 대림절 첫 주일 (성탄절 전 넷째 주일)
-function adventOf(year) {
+export function adventOf(year) {
   const xmas = utc(year, 12, 25)
   const dow = new Date(xmas).getUTCDay()
   return xmas - (dow === 0 ? 28 : dow + 21) * DAY

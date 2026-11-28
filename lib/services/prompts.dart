@@ -220,5 +220,16 @@ Future<String> writeFromMap(String outline, String? target, int chars, String? p
       'outline': outline, 'target': target, 'chars': chars, 'passage': passage, 'title': title, 'lang': lang, 'bible': bible,
     }, onChunk);
 
+/// 메모판 → 설계도 정리 (AI 가 JSON 으로 답한다)
+Future<String> arrangeBoard(String board, int bodyCount, String? passage, String? title, String lang, ChunkCallback? onChunk) =>
+    streamKind('boardToMap', {'board': board, 'bodyCount': bodyCount, 'passage': passage, 'title': title, 'lang': lang}, onChunk);
+
+/// 메모판 → 초안 풀어 쓰기 (onlySelected: 고른 메모만)
+Future<String> writeFromBoard(String board, bool onlySelected, int chars, String? passage, String? title, String lang, String? bible,
+        ChunkCallback? onChunk) =>
+    streamKind('boardToDraft', {
+      'board': board, 'onlySelected': onlySelected, 'chars': chars, 'passage': passage, 'title': title, 'lang': lang, 'bible': bible,
+    }, onChunk);
+
 Future<String> refineDraft(String draft, String lang, String? bible, ChunkCallback? onChunk) =>
     streamKind('refineDraft', {'draft': draft, 'lang': lang, 'bible': bible}, onChunk);

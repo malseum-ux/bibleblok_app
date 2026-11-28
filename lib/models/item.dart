@@ -9,6 +9,7 @@
 //   "steps": { "0": "...", "4": "..." },
 //   "finalSteps": { },         ← 교재만 사용
 //   "map": { "branches": [...] } ← 설교 설계도 (설교작성만, 없으면 생략)
+//   "board": { "notes": [...] } ← 설교 메모판 (설교작성만, 없으면 생략)
 // }
 
 class Item {
@@ -28,6 +29,9 @@ class Item {
 
   /// 설교 설계도 (widgets/sermon_map.dart SermonMap.toJson)
   Map<String, dynamic>? map;
+
+  /// 설교 메모판 (widgets/sermon_board.dart SermonBoard.toJson)
+  Map<String, dynamic>? board;
 
   /// 탭 폴더 안에서의 폴더 경로 ('' = 루트)
   String folder;
@@ -52,6 +56,7 @@ class Item {
     this.folder = '',
     this.fileName,
     this.map,
+    this.board,
   })  : steps = steps ?? {},
         finalSteps = finalSteps ?? {};
 
@@ -84,6 +89,7 @@ class Item {
       folder: folder,
       fileName: fileName,
       map: j['map'] is Map ? (j['map'] as Map).cast<String, dynamic>() : null,
+      board: j['board'] is Map ? (j['board'] as Map).cast<String, dynamic>() : null,
     );
   }
 
@@ -104,6 +110,7 @@ class Item {
         'steps': steps.map((k, v) => MapEntry('$k', v)),
         if (finalSteps.isNotEmpty) 'finalSteps': finalSteps.map((k, v) => MapEntry('$k', v)),
         if (map != null) 'map': map,
+        if (board != null) 'board': board,
       };
 
   /// 사이드바 표시 이름 — 웹 Sidebar.getLabel 과 같은 규칙

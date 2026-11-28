@@ -4,6 +4,7 @@
 // 지시문을 고치면 서버 함수만 다시 올리면 된다 — 웹·Mac·iPhone·Android 모두에 즉시 반영.
 // 원본: 예전 웹 src/claude.js 의 지시문 부분을 그대로 옮겼다 (내용 변경 없음)
 import { getHymnListText } from './hymns.js'
+import { adventOf } from './worship_refs.js'
 import { getRandomVerseText, FORGIVENESS_VERSES, CALL_TO_WORSHIP_VERSES } from './worship-verses.js'
 
 const CITATION_POLICY_EN = `
@@ -858,6 +859,77 @@ ${outline}`
   return { prompt, systemExtra: '' }
 }
 
+// 메모판(흩어 놓은 메모·묶음·이은 선) → 설계도 가지로 나누기. JSON 으로만 답한다
+function buildBoardToMap({ board = '', bodyCount = 3, passage = '', title = '', lang }) {
+  const n = Math.max(1, Math.min(6, Number(bodyCount) || 3))
+  const prompt = lang === 'en'
+    ? `You are a preacher organizing your own scattered sermon notes into a sermon map.
+Read the notes (m1, m2…), their groups and links, and arrange them into: Big Idea, Introduction, about ${n} main points, Conclusion, and Further Study.
+
+[Rules]
+- Use only the notes given. Every note goes to exactly one part. Notes that do not fit the sermon go to "study".
+- Respect groups (notes in a group usually belong together) and arrows (→ = order of flow).
+- "bigidea": the one idea of the sermon, one sentence, drawn from the notes.
+- Each part's "thesis": one sentence that part says.
+- Answer with JSON only, no explanation, in this exact shape:
+{"bigidea":"...","parts":[{"kind":"intro","thesis":"...","notes":["m1"]},{"kind":"body","thesis":"...","notes":["m2","m3"]},{"kind":"conclusion","thesis":"...","notes":["m4"]}],"study":["m5"]}
+
+[Sermon] ${title || ''} (${passage || ''})
+
+${board}`
+    : `당신은 자신이 흩어 적어 둔 설교 메모를 설교 설계도로 정리하는 설교자입니다.
+메모(m1, m2…)와 묶음, 이은 선을 읽고 Big Idea · 서론 · 본론(${n}개 안팎) · 결론 · 추가 공부 주제로 나누세요.
+
+[원칙]
+- 주어진 메모만 쓰세요. 메모 하나는 꼭 한 곳에만 넣고, 설교에 맞지 않는 메모는 "study"에 넣으세요.
+- 묶음(같이 묶인 메모는 대개 한 부분)과 화살표(→ 는 흐름 순서)를 존중하세요.
+- "bigidea": 이 설교가 말하려는 단 하나의 생각, 메모에서 끌어낸 한 문장.
+- 각 부분의 "thesis": 그 부분에서 말할 대지 한 문장.
+- 설명 없이 JSON 으로만, 정확히 이 모양으로 답하세요:
+{"bigidea":"...","parts":[{"kind":"intro","thesis":"...","notes":["m1"]},{"kind":"body","thesis":"...","notes":["m2","m3"]},{"kind":"conclusion","thesis":"...","notes":["m4"]}],"study":["m5"]}
+
+[설교] ${title || ''} (${passage || ''})
+
+${board}`
+  return { prompt, systemExtra: '' }
+}
+
+// 메모판 → 설교 원고 풀어 쓰기
+function buildBoardToDraft({ board = '', onlySelected = false, chars = 7500, passage = '', title = '', lang, bible }) {
+  const n = Math.max(300, Math.min(15000, Number(chars) || 7500))
+  const bibleRef = bible || (lang === 'en' ? 'ESV' : '개역개정')
+  const prompt = lang === 'en'
+    ? `You are a preacher writing a sermon manuscript from your own note board.
+${onlySelected ? 'These are only some of the notes; write just that portion of the sermon.' : 'Write the whole sermon from introduction to conclusion.'}
+Length: about ${n} characters.
+
+[Principles]
+- Build the text from the notes. Notes in a group belong together; follow arrows (→) as the order of flow; other links mean the notes are related.
+- Do not add main points or materials that are not in the notes, except natural transitions and brief explanations.
+- Write as a spoken sermon manuscript, flowing paragraphs, no numbering or headings.
+- Bible version: ${bibleRef}
+
+[Sermon] ${title || ''} (${passage || ''})
+
+[Note board]
+${board}`
+    : `당신은 자신이 적어 둔 설교 메모판을 바탕으로 설교 원고를 쓰는 설교자입니다.
+${onlySelected ? '아래는 메모판 가운데 일부입니다. 이 메모들로 설교의 그 부분만 쓰세요.' : '서론부터 결론까지 설교 전체를 쓰세요.'}
+분량: 약 ${n}자.
+
+[원칙]
+- 메모를 재료로 삼아 살을 붙이세요. 같은 묶음의 메모는 한 덩어리이고, 화살표(→)는 흐름 순서, 그냥 이은 선(—)은 서로 관련된 생각입니다.
+- 메모에 없는 새 대지나 자료는 더하지 마세요. 자연스러운 이음말과 짧은 설명만 더할 수 있습니다.
+- 회중 앞에서 읽는 설교 원고로, "~입니다" 경어체의 이어지는 문단으로 쓰세요. 번호나 소제목은 붙이지 마세요.
+- 성경 인용: ${bibleRef}
+
+[설교] ${title || ''} (${passage || ''})
+
+[메모판]
+${board}`
+  return { prompt, systemExtra: '' }
+}
+
 function buildRefineDraft({ draft, lang, bible }) {
 
   const bibleRef = bible || (lang === 'en' ? 'ESV' : '개역개정')
@@ -896,8 +968,12 @@ ${draft}`
 
 // 성서정과 조회 — 짧게 한 번에 (스트리밍 없음, 기본 시스템 지시도 붙이지 않는다)
 function buildLectionary({ date, season, bible }) {
-  const year = new Date(date).getFullYear()
-  const cycle = ['A', 'B', 'C'][(year - 2022) % 3] || 'A'
+  // 교회력 해: 대림절 첫째 주일부터 다음 해로 친다 (2026년 대림절~2027년 = B년)
+  //   교회력 해 % 3 → 1=A, 2=B, 0=C (2026=A, 2027=B, 2028=C)
+  const [y, m, d] = String(date).split('-').map(Number)
+  const t = Date.UTC(y, m - 1, d)
+  const churchYear = t >= adventOf(y) ? y + 1 : y
+  const cycle = ['C', 'A', 'B'][churchYear % 3]
 
   const prompt = `개정 공동 성구집(RCL) ${cycle}년 주기를 기준으로, ${date} (${season || '일반 주일'})의 성서정과 본문을 알려주세요.
 구약/시편/서신서/복음서 각 1개씩, 성경 장절 형식으로만 간결하게 답하세요. 설명 없이 본문 목록만 작성하세요.
@@ -915,6 +991,8 @@ const KINDS = {
   inlineCommand: { build: buildInlineCommand },
   selectionEdit: { build: buildSelectionEdit },
   mapToDraft: { build: buildMapToDraft },
+  boardToMap: { build: buildBoardToMap, maxTokens: 4000 },
+  boardToDraft: { build: buildBoardToDraft },
   refineDraft: { build: buildRefineDraft },
   lectionary: { build: buildLectionary, stream: false, maxTokens: 200, noBaseSystem: true },
 }
